@@ -1,0 +1,17 @@
+package events
+{
+	import flash.events.Event;
+	
+	public class DeliverImageIdEvent extends Event
+	{
+		static public const DELIVERID:String = "DeliverId";
+		public var data:String;
+		public function DeliverImageIdEvent(data:String, bubbles:Boolean=true, cancelable:Boolean=false)
+		{
+			super(DELIVERID, bubbles, cancelable);
+			this.data = data;
+		}
+		
+		
+	}
+}

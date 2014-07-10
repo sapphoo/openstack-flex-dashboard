@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" minWidth="955" minHeight="600" creationComplete="initApp()">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import as3.SystemLogin;
+			
+			import flashx.textLayout.conversion.FormatDescriptor;
+			import flashx.textLayout.formats.FormatValue;
+			
+			import mx.controls.Alert;
+			import mx.formatters.Formatter;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			import mx.utils.URLUtil;
+
+
+			var loginClass:SystemLogin = new SystemLogin();
+			var http_Service:HTTPService = new HTTPService();
+			private function initApp():void
+			{
+				http_Service.addEventListener(ResultEvent.RESULT,verLogin);
+				http_Service.addEventListener(FaultEvent.FAULT,http_service_faultHandler);
+				text_VerCode.addEventListener(KeyboardEvent.KEY_DOWN,enterKeyCheck);
+				text_UserPass.text="";
+				text_UserName.text="";
+				text_VerCode.text="";
+				getVeriCode();
+			}
+			private function enterKeyCheck(e:KeyboardEvent):void
+			{
+				if(e.keyCode==13)
+				{
+					login();
+				}
+			}
+			private function getVeriCode():void
+			{
+				vCode.text = loginClass.generVeriCode();
+			}
+			private function cancle():void
+			{
+				text_UserPass.text="";
+				text_UserName.text="";
+				getVeriCode();
+			}
+			private function login():void
+			{
+				if(text_UserName.text!=""&&text_UserPass.text!=""&&text_Tenant.text!=""){
+					if (vCode.text.toLocaleLowerCase()!=text_VerCode.text.toLocaleLowerCase())
+					{
+						Alert.show("验证码输入错误","警告");		
+					}else{
+						requestSend();	
+					}
+				}else{
+					Alert.show("请输入【租户、用户名或密码】","警告");
+				}
+			}
+			private function requestSend():void
+			{
+				
+				var tent:String = text_Tenant.text;
+				var user:String = text_UserName.text;
+				var pass:String = text_UserPass.text;
+				http_Service.url="http://192.168.18.18:35357/v2.0/tokens";
+				http_Service.method="POST";
+				http_Service.contentType="application/json";
+				http_Service.headers["Accept"] = "application/xml";
+				//tenant:admin        user:admin    pass:99226114226d4f52  
+				var obj:String = '{"auth": {"tenantName": "'+tent+'", "passwordCredentials":{"username":"'+user+'", "password": "'+pass+'"}}}';
+				http_Service.resultFormat = "text";
+				http_Service.send(obj);		
+			}
+			protected function verLogin(event:ResultEvent):void
+			{
+				var xml:XML = XML(event.result);
+				var NS:Namespace = xml.namespace();
+				if(xml.NS::token!=null)
+				{
+					var obj:SharedObject = SharedObject.getLocal("cookie","/");
+					obj.data.xmlstr=xml;
+					navigateToURL(new URLRequest("OpenStack_Main.html"));
+				}else{
+					Alert.show("输入错误!","错误");
+				}
+			}
+			protected function http_service_faultHandler(event:FaultEvent):void
+			{
+				Alert.show("登入失败!","错误");
+				trace("访问服务器失败");
+			}
+		]]>
+	</fx:Script>
+	<s:Rect left="0" right="0" top="0" bottom="0" alpha="0.8"> 
+		<s:fill> 
+			<s:LinearGradient rotation="250"> 
+				<s:GradientEntry color="#CDCDB4" ratio="0"/> 
+				<s:GradientEntry color="#EE4000" ratio="1"/> 
+			</s:LinearGradient> 
+		</s:fill> 
+	</s:Rect>
+	<s:Panel width="364" height="246" borderVisible="false" chromeColor="#EE9451"
+			 dropShadowVisible="true" fontFamily="中易黑体" horizontalCenter="0"
+			 textAlign="left" title="云管理平台" verticalCenter="0">
+		<s:BorderContainer width="312" height="215" borderVisible="false" horizontalCenter="0"
+						   verticalCenter="0">
+			<s:Label left="12" top="21" width="39" height="25" text="租 户：" verticalAlign="middle"/>
+			<s:Label left="12" top="58" width="48" height="25" text="用户名：" verticalAlign="middle"/>
+			<s:Label left="12" top="96" width="39" height="25" text="密 码：" verticalAlign="middle"/>
+			<s:Label left="12" top="132" width="48" height="25" text="验证码：" verticalAlign="middle"/>
+			
+			<s:TextInput id="text_Tenant" left="70" right="12" top="21" height="25"/>
+			<s:TextInput id="text_UserName" left="70" right="12" top="58" height="25"/>
+			<s:TextInput id="text_UserPass" left="70" right="12" top="95" height="25"
+						 displayAsPassword="true"/>
+			<s:TextInput id="text_VerCode" left="70" top="132" width="75" height="25"/>
+			
+			<s:Label id="vCode" left="171" top="132" width="45" height="25" fontSize="15" text="验证码"
+					 textAlign="center" verticalAlign="middle"/>
+			<s:Label left="228" top="132" width="58" height="25" click="getVeriCode()" text="换一个"
+					 textAlign="center" verticalAlign="middle"/>
+			
+			<s:Button right="80" top="166" width="60" height="26" label="确定" click="login()"/>
+			<s:Button right="12" top="166" width="60" height="26" label="取消 " click="cancle()"/>
+			
+			
+		</s:BorderContainer>
+	</s:Panel>
+
+</s:Application>

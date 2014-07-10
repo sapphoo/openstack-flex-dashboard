@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"  title="创建镜像" 
+			   fontSize="12"  borderColor="#232020" 
+			   fontWeight="bold"  color="#283584" width="652" height="388" 
+			   close="close()" creationComplete="Init()">
+	
+	<!--定义函数close(),init()-->
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.serialization.json.*;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+
+			private function Init():void{//初始化窗口大小
+				
+				this.x=this.parent.width/2-this.width/2;
+				this.y=this.parent.height/2-this.height/2;
+			
+			}
+			private function close():void{//关闭窗口函数
+				
+				this.dispatchEvent(new Event("CreateImageCompleted"));
+				PopUpManager.removePopUp(this);
+			}
+			
+			private function cancle():void
+			{
+				iName.text="";
+				disc.text="";
+				mindisk.text="";
+				minMem.text="";
+				isPublic.selected=false;
+				ifCreate.selected=false;
+			}
+			private function create():void
+			{
+				if(iName.text!==""&&container_format.selectedItem.toString()!=""&&disk_format.selectedItem.toString()!=""&&disc.text!="")
+				{
+					if(ifCreate.selected==true)
+					{
+						var ispublic:String = "public";
+						if(isPublic.selected==false)
+						{
+							ispublic = "private";
+						}
+						this.dispatchEvent(new Event("CreateImage"));
+						close();
+					}
+					else
+					{
+						Alert.show("请设置同意创建！","建议");
+					}
+				}
+				else
+				{
+					Alert.show("前四项不能为空！","错误");
+				}
+			}
+		]]>
+	</fx:Script>
+	
+	<!--设计界面-->
+	<s:Label color="#000000" fontWeight="normal" fontSize="12" text="镜像名称" height="25" textAlign="center" top="14" left="67"/>
+	<s:TextInput width="220" height="25" top="10" left="135" id="iName"/>
+	
+	<s:Label text="描       述" color="#000000" fontWeight="normal" top="54" left="67" height="25"/>
+	<s:TextInput width="220" height="25" top="50" left="135" id="disc"/>
+	
+	<s:Label text="磁盘格式" color="#000000" fontWeight="normal" left="67" top="94" height="25"/>
+	<s:DropDownList id="disk_format" left="135" top="90" height="25" requireSelection="true" width="220" textAlign="center">
+		<s:dataProvider>
+			<s:ArrayList>
+				<fx:String>ISO</fx:String>
+				<fx:String>QCOW2</fx:String>
+				<fx:String>AKI</fx:String>
+				<fx:String>AMI</fx:String>
+				<fx:String>ARI</fx:String>
+			</s:ArrayList>
+		</s:dataProvider>
+	</s:DropDownList>
+	<s:Label text="容器格式" height="25" left="67" top="134"/>
+	<s:DropDownList id="container_format" left="135" top="130" height="25" requireSelection="true" width="220" textAlign="center">
+		<s:dataProvider>
+			<s:ArrayList>
+				<fx:String>BARE</fx:String>
+				<fx:String>AMI</fx:String>
+				<fx:String>ARI</fx:String>
+				<fx:String>AKI</fx:String>
+				<fx:String>OVF</fx:String>
+				<fx:String>OVA</fx:String>
+			</s:ArrayList>
+		</s:dataProvider>
+	</s:DropDownList>
+	<s:Label text="最小磁盘" color="#000000" fontWeight="normal" left="67" top="176" height="25"/>
+	<s:TextInput left="135" top="172" height="25" width="220" id="mindisk"/>
+	
+	<s:Label text="最小内存" color="#000000" fontWeight="normal" top="216" left="67" height="25"/>
+	<s:TextInput top="212" height="25" left="135" width="220" id="minMem"/>
+	
+	<s:Label text="公       有" color="#000000" fontWeight="normal" left="67" top="256" height="25"/>
+	<s:CheckBox left="135" top="252" id="isPublic"/>
+	
+	<s:CheckBox id="ifCreate" label="同意创建" width="71" color="#132DCC" selected="false" enabled="true" top="279" left="289"/>
+	<s:Label text="说明：" top="10" height="20" right="203" left="403"/>
+	<s:Label text="指定镜像上传到镜像服务" top="30" height="20" right="99" width="148"/>
+	<s:Label text="目前只支持HTTP URL可用镜像。" height="20" top="50" right="56" width="191"/>
+	<s:Label text="镜像服务必须能够访问到镜像地址。" height="20" top="70" right="34" width="213"/>
+	<s:Label text="支持镜像的二进制压缩格式(.zip,.tar,.gz.)" height="20" top="90" right="11.149994" width="235.85"/>
+	
+	
+	<s:Label text="请注意： " right="187" width="60" height="20" top="131"/>
+	<s:Label text="镜像地址必须是有效的直接定位到镜像" height="20" top="151" x="403"/>
+	<s:Label text="URL被重定向将导致镜像不可用" height="20" top="171" right="21" width="226"/>
+	<mx:ControlBar height="43" width="100%" bottom="0" contentBackgroundColor="#C5C3C3" dropShadowVisible="true">
+		<mx:Button fontWeight="normal" color="#0F28BB" textAlign="center" label="创建" click="create()"/>
+		<mx:Button label="取消" fontWeight="normal" textAlign="center" click="cancle()"/>
+	</mx:ControlBar>
+	
+	
+	
+</s:TitleWindow>

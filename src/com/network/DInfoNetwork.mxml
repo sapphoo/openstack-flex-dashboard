@@ -1,0 +1,361 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" creationComplete="init()">
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.net.URI;
+			import com.adobe.serialization.json.JSON;
+			
+			import events.DeliverNetworkIdEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			
+			import org.httpclient.HttpClient;
+			import org.httpclient.HttpRequest;
+			import org.httpclient.events.HttpDataEvent;
+			import org.httpclient.events.HttpListener;
+			import org.httpclient.events.HttpResponseEvent;
+			import org.httpclient.events.HttpStatusEvent;
+			import org.httpclient.http.Delete;
+			import org.httpclient.http.Get;
+			import org.httpclient.http.Post;
+			import org.httpclient.http.Put;
+			[Bindable]
+			public var tokenId:String;
+			[Bindable]
+			private var arrcoll:ArrayCollection = new ArrayCollection();
+			//private var networkId:String;
+			private var un:UpdateNetwork;
+			private var cn:CreateNetwork;
+			private function init():void
+			{
+				un = new UpdateNetwork();
+				cn = new CreateNetwork();
+				dataGrid_net.addEventListener("Update",updateNetworkHandler,true);
+				dataGrid_net.addEventListener("Delete",deleteNetworkHandler,true);
+				dataGrid_net.addEventListener(DeliverNetworkIdEvent.DELIVERID,getDetailNetworkHandler);
+				un.addEventListener("UpdateNetwork",updNetworkHandler);
+				cn.addEventListener("CreateNetwork",creNetworkHandler);
+			}
+			private function createNetwork():void
+			{
+				PopUpManager.addPopUp(cn, this, true);
+				cn.tokenId = tokenId;
+			}
+			private function creNetworkHandler(evt:Event):void
+			{
+				var tenantArray:Array = new Array();
+				tenantArray = cn.tenantArray;
+				var tenant_id:String ="";
+				for(var i:int=0;i<tenantArray.length;i++)
+				{
+					if(tenantArray[i].name==cn.net_tname.selectedItem.toString())
+					{
+						tenant_id = tenantArray[i].id;
+						break;
+					}
+				}
+				var strFormat:String = '{"network":{"name":"'+cn.net_name.text+'","tenant_id":"'+tenant_id+'","router:external":"'+cn.net_pubic_net.selected+'","admin_state_up":"'+cn.net_admin_state.selected+'","shared":"'+cn.net_shared.selected+'"}}';
+				var client:HttpClient = new HttpClient();
+				client.listener.onData = function(event:HttpDataEvent):void
+				{
+					var strData:String=event.readUTFBytes();
+					var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+					if(jsonPaser.network!=null)
+					{
+						Alert.show("创建成功！","恭喜");
+					}
+				};
+				client.listener.onComplete = function(event:HttpResponseEvent):void
+				{
+					searchNetwork();
+					
+				};
+				client.listener.onError = function(event:ErrorEvent):void
+				{
+					trace("onError-type = "+event.type+"-text = "+event.text);
+				};
+				
+				var url:String = "http://192.168.18.18:9696/v2.0/networks";
+				var uri:URI = new URI(url);
+				var post:Post = new Post();
+				post.addHeader("X-Auth-Token",tokenId);
+				post.contentType = "application/json";
+				var bya:ByteArray = new ByteArray();
+				bya.writeUTFBytes(strFormat);
+				bya.position=0;
+				post.body = bya;
+				client.request(uri,post);
+				
+				
+			}
+			public function searchNetwork():void
+			{
+				var client:HttpClient = new HttpClient();
+				client.listener.onData = function(event:HttpDataEvent):void
+				{
+					var strData:String=event.readUTFBytes();
+					var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+					var jsonArray1:Array = jsonPaser.subnets as Array;
+					//二层嵌套
+					var client:HttpClient = new HttpClient();
+					client.listener.onData = function(event:HttpDataEvent):void
+					{
+						var strData:String=event.readUTFBytes();
+						var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+						var jsonArray2:Array = jsonPaser.networks as Array;
+						for(var i:int=0;i<jsonArray2.length;i++)
+						{
+							var sub:Array = new Array();
+							var subName:String="";
+							sub = jsonArray2[i].subnets;
+							for(var j:int=0;j<sub.length;j++)
+							{
+								for(var k:int=0;k<jsonArray1.length;k++)
+								{
+									if (sub[j]==jsonArray1[k].id)
+									{
+										if(subName=="")
+										{
+											subName=jsonArray1[k].name+":"+jsonArray1[k].cidr;
+										}
+										else
+										{
+											subName=subName+"\n"+jsonArray1[k].name+":"+jsonArray1[k].cidr;
+										}
+										continue;
+									}
+								}
+							}
+							jsonArray2[i].subnets = subName;
+						}
+						//三层嵌套
+						var client:HttpClient = new HttpClient();
+						client.listener.onData = function(event:HttpDataEvent):void
+						{
+							var strData:String=event.readUTFBytes();
+							var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+							var jsonArray3:Array = jsonPaser.tenants as Array; 
+							for(var i:int=0;i<jsonArray2.length;i++)
+							{
+								for(var j:int=0;j<jsonArray3.length;j++)
+								{
+									if(jsonArray2[i].tenant_id == jsonArray3[j].id)
+									{
+										jsonArray2[i].tenant_id=jsonArray3[j].name;
+										continue;
+									}
+								}
+							}
+						};
+						client.listener.onError = function(event:ErrorEvent):void
+						{
+							trace("onError-type = "+event.type+"-text = "+event.text);
+						};
+						var url:String = "http://192.168.18.18:35357/v2.0/tenants";
+						var uri:URI = new URI(url);
+						var request:HttpRequest = new Get();
+						request.addHeader("contentType","application/json");
+						request.addHeader("Accept","application/json");
+						request.addHeader("X-Auth-Token",tokenId);
+						request.addHeader("resultFormat","text");
+						client.request(uri,request);
+					    arrcoll = new ArrayCollection(jsonArray2);
+						arrcoll.filterFunction = function filterFunc(value:Object):Object
+						{
+							if(value.admin_state_up=="false")
+							{
+								value.admin_state_up="Down";
+							}
+							else
+							{
+								value.admin_state_up="Up";
+							}
+							return true;
+						};
+
+						arrcoll.refresh();
+						//三层嵌套结束
+					};
+					client.listener.onError = function(event:ErrorEvent):void
+					{
+						trace("onError-type = "+event.type+"-text = "+event.text);
+					};
+					var url:String = "http://192.168.18.18:9696/v2.0/networks";
+					var uri:URI = new URI(url);
+					var request:HttpRequest = new Get();
+					request.addHeader("Content-Type","application/json");
+					request.addHeader("Accept","application/json");
+					request.addHeader("X-Auth-Token",tokenId);
+					request.addHeader("resultFormat","text");
+					client.request(uri,request);
+					//二层嵌套结束
+				};
+				client.listener.onComplete = function(event:HttpResponseEvent):void
+				{
+					trace("oncomplete");
+				};
+				client.listener.onError = function(event:ErrorEvent):void
+				{
+					trace("onError-type = "+event.type+"-text = "+event.text);
+				};
+				var url:String = "http://192.168.18.18:9696/v2.0/subnets";
+				var uri:URI = new URI(url);
+				var request:HttpRequest = new Get();
+				request.addHeader("Content-Type","application/json");
+				request.addHeader("Accept","application/json");
+				request.addHeader("X-Auth-Token",tokenId);
+				request.addHeader("resultFormat","text");
+				client.request(uri,request);
+			} 
+			private function deleteNetworkHandler(evt:Event):void
+			{
+				Alert.show("确定删除？","系统提示",(1|2),this,delItemHandle);	
+			}
+			private function delItemHandle(event:CloseEvent):void
+			{
+				if (event.detail==Alert.YES){
+					var client:HttpClient = new HttpClient();
+					client.listener.onData = function(event:HttpDataEvent):void
+					{
+						Alert.show("删除网络失败！","悲伤");
+					};
+					client.listener.onComplete = function(event:HttpResponseEvent):void
+					{
+						searchNetwork();						
+					};
+					client.listener.onError = function(event:ErrorEvent):void
+					{
+						Alert.show("删除网络失败！","悲伤");
+						trace("onError-type = "+event.type+"-text = "+event.text);
+					};
+					var url:String = "http://192.168.18.18:9696/v2.0/networks/"+dataGrid_net.selectedItem.id;
+					var uri:URI = new URI(url);
+					var del:Delete = new Delete();
+					del.addHeader("X-Auth-Token",tokenId);
+					client.request(uri,del);
+				}
+				else
+				{
+				}
+			}
+			private function updateNetworkHandler(evt:Event):void
+			{
+				PopUpManager.addPopUp(un, this, true);
+				un.nname = dataGrid_net.selectedItem.name;
+				un.nid = dataGrid_net.selectedItem.id;
+				un.npublic_net = dataGrid_net.selectedItem["router:external"];
+				un.nadmin_state = dataGrid_net.selectedItem.admin_state_up;
+				un.nshared = dataGrid_net.selectedItem.shared;
+			}
+			private function updNetworkHandler(evt:Event):void
+			{
+				var strFormat:String = '{"network":{"name":"'+un.net_name.text+'","router:external":"'+un.net_pubic_net.selected+'","admin_state_up":"'+un.net_admin_state.selected+'","shared":"'+un.net_shared.selected+'"}}';
+				var client:HttpClient = new HttpClient();
+				client.listener.onData = function(event:HttpDataEvent):void
+				{
+					var strData:String=event.readUTFBytes();
+					var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+					if(jsonPaser.network!=null)
+					{
+						Alert.show("更新成功！","恭喜");
+					}
+				};
+				client.listener.onComplete = function(event:HttpResponseEvent):void
+				{
+					searchNetwork();
+					
+				};
+				client.listener.onError = function(event:ErrorEvent):void
+				{
+					trace("onError-type = "+event.type+"-text = "+event.text);
+				};
+				
+				var url:String = "http://192.168.18.18:9696/v2.0/networks/"+dataGrid_net.selectedItem.id;
+				var uri:URI = new URI(url);
+				var put:Put = new Put();
+				put.addHeader("X-Auth-Token",tokenId);
+				put.contentType = "application/json";
+				var bya:ByteArray = new ByteArray();
+				bya.writeUTFBytes(strFormat);
+				bya.position=0;
+				put.body = bya;
+				client.request(uri,put);
+			}
+			private function getDetailNetworkHandler(evt:DeliverNetworkIdEvent):void
+			{
+				var gdni = new GetDetailNetworkInfo();
+				gdni.tokenId = tokenId;
+				gdni.networkId = evt.data;
+				PopUpManager.addPopUp(gdni, this, true);
+			}
+		]]>
+	</fx:Script>
+	<s:Rect left="0" top="0" alpha="0.8" height="35" width="100%"> 
+		<s:fill> 
+			<s:LinearGradient rotation="90"> 
+				<s:GradientEntry color="#0083C7" ratio="0"/> 
+				<s:GradientEntry color="#3BA5DF" ratio="1"/> 
+			</s:LinearGradient> 
+		</s:fill> 
+	</s:Rect>
+	<s:Label left="0" width="70" height="25" color="#FFFFFF" fontSize="16" text="网络信息"
+			 textAlign="center" verticalAlign="middle" top="4"/>
+	<s:Button right="10" width="91" height="25" label="创建网络" color="#FFFFFF"
+			  fontSize="14" click="createNetwork()" chromeColor="#3FB5E0" y="4"/>
+	<mx:DataGrid id="dataGrid_net" left="0" top="35" right="0" dataProvider="{arrcoll}" textAlign="center">
+		<mx:columns>
+			<mx:DataGridColumn  headerText="租户" dataField="tenant_id"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="网络名称" dataField="name" >
+				<mx:itemRenderer>
+					<fx:Component> 
+						<mx:LinkButton label="{data.name}" toolTip="查看网络详情" click="searchBtn(event);" color="#ff0606" fontWeight="bold">
+							<fx:Script>
+								<![CDATA[
+									import events.DeliverNetworkIdEvent;
+									private function searchBtn(event:MouseEvent):void
+									{
+										dispatchEvent(new DeliverNetworkIdEvent(data.id));
+									}
+								]]>
+							</fx:Script> 
+						</mx:LinkButton>
+					</fx:Component>
+				</mx:itemRenderer> 
+			</mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="网络ID" dataField="id" visible="false"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="子网" dataField="subnets"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="网络类型" dataField="provider:network_type"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="外部网络" dataField="router:external"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="共享" dataField="shared"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="状态" dataField="status"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="管理员状态" dataField="admin_state_up"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="动作" dataField="">
+				<mx:itemRenderer>
+					<fx:Component> 
+						<mx:HBox width="100" height="25" horizontalAlign="center">
+							<s:Button width="45" height="25" label="编辑" click="updateBtn(event);"/>
+							<s:Button width="45" height="25" label="删除" click="deleteBtn(event);"/>
+							<fx:Script>
+								<![CDATA[
+									private function updateBtn(event:MouseEvent):void
+									{
+										dispatchEvent(new Event("Update"));
+									}
+									private function deleteBtn(event:MouseEvent):void
+									{
+										dispatchEvent(new Event("Delete"));
+									}
+								]]>
+							</fx:Script>
+						</mx:HBox>
+					</fx:Component> 
+				</mx:itemRenderer> 
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+</s:Group>

@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="1168" height="440">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.collections.ArrayCollection;
+			
+			[Bindable]
+			public var db1:ArrayCollection;
+			[Bindable]
+			public var db2:ArrayCollection;
+			[Bindable]
+			public var db3:ArrayCollection;
+			[Bindable]
+			public var db4:ArrayCollection;
+			[Bindable]
+			public var db5:ArrayCollection;
+			private function showMoreInfo(data:Object, field:String, index:Number, percentValue:Number):String{
+				//data表示传进来的整个对象，你可以访问他的各种属性了.field表示目前你用了哪个属性（这里是gold）.
+				//index是顺序（也就是美国0，中国1,日本2）,percentValue是百分比(他的返回值很长，比如36.0815241424);
+				var percent:String = percentValue.toString().substr(0,6);
+				return data.value + "\n 实例数：";
+			}
+		]]>
+	</fx:Script>
+	<mx:PieChart id="pie1" dataProvider="{db1}" width="292" height="200" showDataTips="true" top="0" left="0">
+		<mx:series>
+			<mx:PieSeries field="value" labelPosition="callout" nameField="name" labelFunction="showMoreInfo">
+				<!-- 清除掉投影-->
+				<mx:filters><fx:Array /></mx:filters>
+				
+				<!-- 内部分割线条 -->
+				<mx:radialStroke>
+					<mx:Stroke weight="1" color="#ffffff" alpha="0.3" />
+				</mx:radialStroke>
+				
+				<!-- 圆周边 边线 -->
+				<mx:stroke>
+					<mx:Stroke weight="2" color="#000000" alpha="0.5" />
+				</mx:stroke>
+				
+				<!-- 提示信息的线 -->
+				<mx:calloutStroke>
+					<mx:Stroke weight="1" color="#000000" alpha="0.5" />
+				</mx:calloutStroke>
+			</mx:PieSeries>
+		</mx:series>
+		
+	</mx:PieChart>
+	<!-- 图例说明 -->
+	<mx:Legend dataProvider="{pie1}"  width="95" height="59" left="0" top="0"/>
+	<mx:PieChart id="pie2" dataProvider="{db2}" width="292" height="200" showDataTips="true" top="0" left="292">
+		<mx:series>
+			<mx:PieSeries field="value" labelPosition="callout" nameField="name" labelFunction="showMoreInfo">
+				<!-- 清除掉投影-->
+				<mx:filters><fx:Array /></mx:filters>
+				
+				<!-- 内部分割线条 -->
+				<mx:radialStroke>
+					<mx:Stroke weight="1" color="#ffffff" alpha="0.3" />
+				</mx:radialStroke>
+				
+				<!-- 圆周边 边线 -->
+				<mx:stroke>
+					<mx:Stroke weight="2" color="#000000" alpha="0.5" />
+				</mx:stroke>
+				
+				<!-- 提示信息的线 -->
+				<mx:calloutStroke>
+					<mx:Stroke weight="1" color="#000000" alpha="0.5" />
+				</mx:calloutStroke>
+			</mx:PieSeries>
+		</mx:series>
+		
+	</mx:PieChart>
+	<!-- 图例说明 -->
+	<mx:Legend dataProvider="{pie2}"  width="95" height="59" top="0" left="292"/>
+	<mx:PieChart id="pie3" dataProvider="{db3}" width="292" height="200" showDataTips="true" top="0" left="584">
+		<mx:series>
+			<mx:PieSeries field="value" labelPosition="callout" nameField="name" labelFunction="showMoreInfo">
+				<!-- 清除掉投影-->
+				<mx:filters><fx:Array /></mx:filters>
+				
+				<!-- 内部分割线条 -->
+				<mx:radialStroke>
+					<mx:Stroke weight="1" color="#ffffff" alpha="0.3" />
+				</mx:radialStroke>
+				
+				<!-- 圆周边 边线 -->
+				<mx:stroke>
+					<mx:Stroke weight="2" color="#000000" alpha="0.5" />
+				</mx:stroke>
+				
+				<!-- 提示信息的线 -->
+				<mx:calloutStroke>
+					<mx:Stroke weight="1" color="#000000" alpha="0.5" />
+				</mx:calloutStroke>
+			</mx:PieSeries>
+		</mx:series>
+		
+	</mx:PieChart>
+	<mx:Legend dataProvider="{pie3}"  width="95" height="59" left="584" top="0"/>
+	<mx:PieChart id="pie4" dataProvider="{db4}" width="292" height="200" showDataTips="true" top="0" left="876">
+		<mx:series>
+			<mx:PieSeries field="value" labelPosition="callout" nameField="name" labelFunction="showMoreInfo">
+				<!-- 清除掉投影-->
+				<mx:filters><fx:Array /></mx:filters>
+				
+				<!-- 内部分割线条 -->
+				<mx:radialStroke>
+					<mx:Stroke weight="1" color="#ffffff" alpha="0.3" />
+				</mx:radialStroke>
+				
+				<!-- 圆周边 边线 -->
+				<mx:stroke>
+					<mx:Stroke weight="2" color="#000000" alpha="0.5" />
+				</mx:stroke>
+				
+				<!-- 提示信息的线 -->
+				<mx:calloutStroke>
+					<mx:Stroke weight="1" color="#000000" alpha="0.5" />
+				</mx:calloutStroke>
+			</mx:PieSeries>
+		</mx:series>
+		
+	</mx:PieChart>
+	<mx:Legend dataProvider="{pie4}"  width="95" height="59" top="00" left="876"/>
+	<mx:PieChart id="pie5" dataProvider="{db5}" width="292" height="200" showDataTips="true" top="210" left="0">
+		<mx:series>
+			<mx:PieSeries field="value" labelPosition="callout" nameField="name" labelFunction="showMoreInfo">
+				<!-- 清除掉投影-->
+				<mx:filters><fx:Array /></mx:filters>
+				
+				<!-- 内部分割线条 -->
+				<mx:radialStroke>
+					<mx:Stroke weight="1" color="#ffffff" alpha="0.3" />
+				</mx:radialStroke>
+				
+				<!-- 圆周边 边线 -->
+				<mx:stroke>
+					<mx:Stroke weight="2" color="#000000" alpha="0.5" />
+				</mx:stroke>
+				
+				<!-- 提示信息的线 -->
+				<mx:calloutStroke>
+					<mx:Stroke weight="1" color="#000000" alpha="0.5" />
+				</mx:calloutStroke>
+			</mx:PieSeries>
+		</mx:series>
+		
+	</mx:PieChart>
+	<mx:Legend dataProvider="{pie5}"  width="95" height="59" top="210" left="0"/>
+
+</s:Group>

@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"  title="修改子网" 
+			   fontSize="12"  borderColor="#232020" 
+			   fontWeight="bold"  color="#283584" width="614" height="476" 
+			   close="close()" creationComplete="Init()">
+	
+	
+	<fx:Metadata> 
+		[Event(name="UpdSubnet")] 
+	</fx:Metadata> 
+	
+	<fx:Script>
+		<![CDATA[
+			import mx.controls.Alert;
+			import mx.managers.PopUpManager;
+
+			<!--定义函数close(),init()-->
+			private function Init():void
+			{
+				this.x=this.parent.width/2-this.width/2;
+				this.y=this.parent.height/2-this.height/2;
+			}
+			private function close():void{//关闭窗口函数
+				PopUpManager.removePopUp(this);
+			}
+			private function update():void
+			{
+				this.dispatchEvent(new Event("UpdSubnet"));
+				close();
+			}
+		
+			protected function snet_dns_mouseOutHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.text_dns.visible = false;
+			}
+
+
+			protected function snet_dns_mouseOverHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.text_dns.visible = true;
+			}
+
+
+			protected function snet_router_mouseOutHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.text_router.visible = false;
+			}
+
+
+			protected function snet_router_mouseOverHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.text_router.visible = true;
+			}
+
+
+			protected function snet_gateway_mouseOverHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.text_gateway.visible = true;
+			}
+
+
+			protected function snet_gateway_mouseOutHandler(event:MouseEvent):void
+			{
+				// TODO Auto-generated method stub
+				this.text_gateway.visible =false;
+			}
+
+		]]>
+	</fx:Script>
+	
+	<!--设计界面-->
+	<s:Label color="#000000" fontWeight="normal" fontSize="12" text="子网名称" height="25" textAlign="center" top="16" left="24"/>
+	<s:TextInput width="162" height="25" top="13" left="92" id="snet_name"/>
+	<s:Label text="可选网关" color="#000000" fontWeight="normal" top="56" left="24" height="25" />
+	<s:TextInput width="162" height="25" top="53" left="92" id="snet_gateway" editable="false" mouseOver="snet_gateway_mouseOverHandler(event)" mouseOut="snet_gateway_mouseOutHandler(event)"/>
+	<s:Label text="禁用网关" top="96" left="24" height="25" />
+	<s:CheckBox top="93" left="92" id="snet_closegateway" />
+	<s:Label text="激活DHCP" left="24" top="136" height="25"/>
+	<s:CheckBox left="92" top="133" id="snet_dhcp"/>
+	<s:Label text="DNS域名解析服务" left="24" top="174" height="25" />
+	<mx:ControlBar height="43" width="100%" bottom="0" contentBackgroundColor="#C5C3C3" dropShadowVisible="true">
+		<mx:Button fontWeight="normal" color="#0F28BB" textAlign="center" label="完成" click="update()"/>
+	</mx:ControlBar>
+	<s:Label text="主机路由" left="25" top="294"/>
+	<s:TextArea x="24" y="198" height="74" width="188" id="snet_dns" mouseOut="snet_dns_mouseOutHandler(event)" mouseOver="snet_dns_mouseOverHandler(event)"/>
+	<s:TextArea x="23" y="318" height="74" width="299" id="snet_router" mouseOut="snet_router_mouseOutHandler(event)" mouseOver="snet_router_mouseOverHandler(event)"/>
+	<s:Label x="386" y="13" text="说明：" fontSize="17"/>
+	<s:Label x="386" y="39" text="1.可选网关的网关IP地址（如192.168.1.1）你需要为网关指定明确的地址，如不使用网关，请选择“禁用网关”，你可以，禁用网关后不能再可选网关中输入内容。" width="212"/>
+	<s:Label x="386" y="117" text="2.该子网的DNS服务器IP地址列表，每行一个。" width="212" height="34"/>
+	<s:Label x="386" y="151" text="3.主机增加额外的路由（例如：192.168.1.0/24,10.56.1.254），每行一条。" width="212"/>
+	<s:Label x="220" y="199" text="该子网的DNS服务器IP地址列表，每行一个。" width="131" height="74" id="text_dns" visible="false"/>
+	<s:Label x="342" y="318" text="主机增加额外的路由（例如：192.168.1.0/24,10.56.1.254），每行一条。" width="132" height="74" id="text_router" visible="false"/>
+	<s:Label x="261" y="55" text="可选网关的网关IP地址（如192.168.1.1）你需要为网关指定明确的地址，如不使用网关，请选择“禁用网关”" width="93" id="text_gateway" visible="false"/>
+	<s:CheckBox x="177" y="93" label="不修改网关" id="snet_no_gw" enabled="true" selected="true"/>
+	
+	
+	
+	
+</s:TitleWindow>

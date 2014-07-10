@@ -1,0 +1,849 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx" 
+			   fontSize="12"  borderColor="#232020"
+			   fontWeight="bold"  color="#283584" width="100%" height="100%" 
+			   close="close()" creationComplete="Init()" title="网络详细信息" >
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.net.URI;
+			import com.adobe.serialization.json.JSON;
+			
+			import events.DeliverPortIdEvent;
+			import events.DeliverSubnetIdEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			
+			import org.httpclient.HttpClient;
+			import org.httpclient.HttpRequest;
+			import org.httpclient.events.HttpDataEvent;
+			import org.httpclient.events.HttpListener;
+			import org.httpclient.events.HttpResponseEvent;
+			import org.httpclient.events.HttpStatusEvent;
+			import org.httpclient.http.Delete;
+			import org.httpclient.http.Get;
+			import org.httpclient.http.Post;
+			import org.httpclient.http.Put;
+			[Bindable]
+			var subnetArray:ArrayCollection;
+			[Bindable]
+			var portArray:ArrayCollection;
+			[Bindable]
+			var tokenId:String;
+			[Bindable]
+			var networkId:String;
+			var us:UpdateSubnet;
+			var up:UpdatePort;
+			var cs:CreateSubnet;
+			var cp:CreatePort;
+			var gdsi:GetDetailSubnetInfo;
+			var gdpi:GetDetailPortInfo;
+			//var subId:String;
+			var portId:String; 
+			<!--定义函数close(),init()-->
+			private function Init():void
+			{
+				this.x=this.parent.width/2-this.width/2;
+				this.y=this.parent.height/2-this.height/2;
+				us = new UpdateSubnet();
+				up = new UpdatePort();
+				cs = new CreateSubnet();
+				cp = new CreatePort();
+				gdsi = new GetDetailSubnetInfo();
+				gdpi = new GetDetailPortInfo();
+				us.addEventListener("UpdSubnet",updSubHandler);
+				up.addEventListener("UpdPort",updPortHandler);
+				cs.addEventListener("CreateSubnet",createSubnetHandler);
+				cp.addEventListener("CreatePort",createPortHandler);
+				datagrid_subnet.addEventListener("UpdateSubnet",updateSubHandler,true);
+				datagrid_port.addEventListener("UpdatePort",updatePortHandler,true);
+				datagrid_subnet.addEventListener("DeleteSubnet",deleteSubHandler,true);
+				datagrid_port.addEventListener("DeletePort",deletePortHandler,true);
+				datagrid_subnet.addEventListener(DeliverSubnetIdEvent.DELIVERID,getDetailSubnetHandler);
+				datagrid_port.addEventListener(DeliverPortIdEvent.DELIVERID,getDetailPortHandler);
+				getNetwork();
+			}
+			private function close():void{
+				
+				PopUpManager.removePopUp(this);
+			}
+			private function getNetwork():void
+			{
+				var client:HttpClient = new HttpClient();
+				client.listener.onData = function(event:HttpDataEvent):void
+				{
+					var strData:String=event.readUTFBytes();
+					var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+					var jsonArray:Object = jsonPaser.network as Object; 
+					net_id.text = jsonArray.id;
+					net_admin_state.text = jsonArray.admin_state_up;
+					tenant_id.text = jsonArray.tenant_id;
+					net_shared.text = jsonArray.shared;
+					net_public.text = jsonArray["router:external"];
+					status.text = jsonArray.status;
+				};
+				client.listener.onComplete = function(event:HttpResponseEvent):void
+				{
+					getSubnet();
+					
+				};
+				client.listener.onError = function(event:ErrorEvent):void
+				{
+					trace("onError-type = "+event.type+"-text = "+event.text);
+				};
+				var url:String = "http://192.168.18.18:9696/v2.0/networks/"+networkId;
+				var uri:URI = new URI(url);
+				var request:HttpRequest = new Get();
+				request.addHeader("contentType","application/json");
+				request.addHeader("Accept","application/json");
+				request.addHeader("X-Auth-Token",tokenId);
+				request.addHeader("resultFormat","text");
+				client.request(uri,request);
+			}
+			private function getSubnet():void
+			{
+				var client:HttpClient = new HttpClient();
+				client.listener.onData = function(event:HttpDataEvent):void
+				{
+					var strData:String=event.readUTFBytes();
+					var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+					var jsonArray:Array = jsonPaser.subnets as Array;
+					
+					for(var i:int=0;i<jsonArray.length;i++)
+					{
+						var dnsServer:Array = jsonArray[i].dns_nameservers;
+						var allocationPool:Array = jsonArray[i].allocation_pools; 
+						var hostRouter:Array = jsonArray[i].host_routes;
+						var strDns:String = "";
+						var strRouter:String = "";
+						for(var j:int=0;j<dnsServer.length;j++)
+						{
+							if(strDns=="")
+							{
+								strDns = dnsServer[j];
+							}
+							else
+							{
+								strDns = strDns+"\n"+dnsServer[j];
+							}
+						}
+						jsonArray[i].dns_nameservers = strDns;
+						for( j=0;j<hostRouter.length;j++)
+						{
+							if(strRouter=="")
+							{
+								strRouter = hostRouter[j].destination+","+hostRouter[j].nexthop;
+							}
+							else
+							{
+								strRouter = strRouter+"\n"+hostRouter[j].destination+","+hostRouter[j].nexthop;
+							}
+						}
+						jsonArray[i].host_routes = strRouter;
+					}
+					subnetArray = new ArrayCollection(jsonArray);
+					subnetArray.filterFunction = function filterFunc(value:Object):Object
+					{
+						if(value.network_id==networkId)
+						{
+							return true;
+						}
+						return false;
+					};
+					subnetArray.refresh();
+				};
+				client.listener.onComplete = function(event:HttpResponseEvent):void
+				{
+					getPort();
+				};
+				client.listener.onError = function(event:ErrorEvent):void
+				{
+					trace("onError-type = "+event.type+"-text = "+event.text);
+				};
+				var url:String = "http://192.168.18.18:9696/v2.0/subnets";
+				var uri:URI = new URI(url);
+				var request:HttpRequest = new Get();
+				request.addHeader("contentType","application/json");
+				request.addHeader("Accept","application/json");
+				request.addHeader("X-Auth-Token",tokenId);
+				request.addHeader("resultFormat","text");
+				client.request(uri,request);
+			}
+			private function getPort():void
+			{
+				var client:HttpClient = new HttpClient();
+				client.listener.onData = function(event:HttpDataEvent):void
+				{
+					var strData:String=event.readUTFBytes();
+					var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+					var jsonArray:Array = jsonPaser.ports as Array; 
+					for(var j:int=0;j<jsonArray.length;j++)
+					{
+						var portIP:Array = jsonArray[j].fixed_ips;
+						var ip:String = "";
+						for(var i:int=0;i<portIP.length;i++)
+						{
+							if(ip=="")
+							{
+								ip=portIP[i].ip_address;
+							}
+							else
+							{
+								ip=ip+"\n"+portIP[i].ip_address;
+							}
+						}
+						jsonArray[j].fixed_ips = ip;
+					}
+					
+					
+					portArray = new ArrayCollection(jsonArray);
+					portArray.filterFunction = function filterFunc(value:Object):Object
+					{
+						if(value.network_id==networkId)
+						{
+							return true;
+						}
+						return false;
+					};
+					portArray.refresh();
+				};
+				client.listener.onError = function(event:ErrorEvent):void
+				{
+					trace("onError-type = "+event.type+"-text = "+event.text);
+				};
+				var url:String = "http://192.168.18.18:9696/v2.0/ports";
+				var uri:URI = new URI(url);
+				var request:HttpRequest = new Get();
+				request.addHeader("contentType","application/json");
+				request.addHeader("Accept","application/json");
+				request.addHeader("X-Auth-Token",tokenId);
+				request.addHeader("resultFormat","text");
+				client.request(uri,request);
+			}
+			private function updSubHandler(evt:Event):void
+			{
+				var client:HttpClient = new HttpClient();
+				client.listener.onData = function(event:HttpDataEvent):void
+				{
+					var strData:String=event.readUTFBytes();
+					var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+					var jsonArray:String = (jsonPaser.NeutronError!=null)?jsonPaser.NeutronError.message:null; 
+					if(jsonArray!=null&&jsonArray.length!=0)
+					{
+						Alert.show(jsonArray,"错误");
+					}
+					else
+					{
+						Alert.show("修改成功！","恭喜");
+					}
+				};
+				client.listener.onComplete = function(event:HttpResponseEvent):void
+				{
+					PopUpManager.removePopUp(us);
+					close();
+				};
+				client.listener.onError = function(event:ErrorEvent):void
+				{
+					trace("onError-type = "+event.type+"-text = "+event.text);
+				};
+				var paseDns:String = us.snet_dns.text;
+				var paseRouter:String = us.snet_router.text;
+				var routers:Array = paseRouter.split(/\n/);
+				var dns:Array = paseDns.split(/\n/);
+				var router_out:String="";
+				var dns_out:String="";
+				if(routers.length!=0&&routers[0]!="")
+				{
+					for(var i:int=0;i<routers.length;i++)
+					{
+						var sd:String = '{"destination": "'+routers[i].slice(0,routers[i].indexOf(","))+'", "nexthop": "'+routers[i].slice(routers[i].indexOf(",")+1,routers[i].length)+'"}';
+						if (router_out == "")
+						{
+							router_out = sd;
+						}
+						else
+						{
+							router_out = router_out+","+sd;
+						}
+					}
+				}
+				if(dns.length!=0&&dns[0]!="")
+				{
+					for( var j:int = 0;j<dns.length;j++)
+					{
+						var sdt:String = dns[j];
+						if (dns_out == "")
+						{
+							dns_out = '"'+sdt+'"';
+						}
+						else
+						{
+							dns_out = dns_out+","+'"'+sdt+'"';
+						}
+					}
+				}
+				if(us.snet_no_gw.selected==true)
+				{
+					var strFormat:String = '{"subnet":{"name":"'+us.snet_name.text+'","enable_dhcp":'+us.snet_dhcp.selected+',"dns_nameservers":['+dns_out+'],"host_routes":['+router_out+']}}';
+				}
+				else
+				{
+					var getway:String = (us.snet_closegateway.selected == false)?us.snet_gateway.text:null;
+					var strFormat:String = '{"subnet":{"name":"'+us.snet_name.text+'","gateway_ip":"'+getway+'","enable_dhcp":'+us.snet_dhcp.selected+',"dns_nameservers":['+dns_out+'],"host_routes":['+router_out+']}}';
+				}
+				var url:String = "http://192.168.18.18:9696/v2.0/subnets/"+datagrid_subnet.selectedItem.id;
+				var uri:URI = new URI(url);
+				var put:Put = new Put();
+				put.addHeader("X-Auth-Token",tokenId);
+				put.contentType = "application/json";
+				var bya:ByteArray = new ByteArray();
+				bya.writeUTFBytes(strFormat);
+				bya.position=0;
+				put.body = bya;
+				client.request(uri,put);
+			}
+			private function updPortHandler(evt:Event):void
+			{
+				var client:HttpClient = new HttpClient();
+				client.listener.onData = function(event:HttpDataEvent):void
+				{
+					var strData:String=event.readUTFBytes();
+					var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+					var jsonArray:String = (jsonPaser.NeutronError!=null)?jsonPaser.NeutronError:null; 
+					if(jsonArray!=null&&jsonArray.length!=0)
+					{
+						Alert.show(jsonArray,"错误");
+					}
+					else
+					{
+						Alert.show("修改成功！","恭喜");
+					}
+				};
+				client.listener.onComplete = function(event:HttpResponseEvent):void
+				{
+					PopUpManager.removePopUp(us);
+					close();
+				};
+				client.listener.onError = function(event:ErrorEvent):void
+				{
+					trace("onError-type = "+event.type+"-text = "+event.text);
+				};
+				var strFormat:String = '{"port":{"admin_state_up":'+up.port_admin_status.selected+',"name":"'+up.port_name.text+'","device_id":"'+up.port_device_id.text+'","device_owner":"'+up.port_device_ower.text+'"}}';
+				var url:String = "http://192.168.18.18:9696/v2.0/ports/"+datagrid_port.selectedItem.id;
+				var uri:URI = new URI(url);
+				var put:Put = new Put();
+				put.addHeader("X-Auth-Token",tokenId);
+				put.contentType = "application/json";
+				var bya:ByteArray = new ByteArray();
+				bya.writeUTFBytes(strFormat);
+				bya.position=0;
+				put.body = bya;
+				client.request(uri,put);
+			}
+			private function delPortHandle(event:CloseEvent):void
+			{
+				if (event.detail==Alert.YES)
+				{
+					var client:HttpClient = new HttpClient();
+					client.listener.onData = function(event:HttpDataEvent):void
+					{
+						Alert.show("删除子网失败！","悲伤");
+					};
+					client.listener.onComplete = function(event:HttpResponseEvent):void
+					{
+						close();			
+					};
+					client.listener.onError = function(event:ErrorEvent):void
+					{
+						Alert.show("删除网络失败！","悲伤");
+						trace("onError-type = "+event.type+"-text = "+event.text);
+					};
+					var url:String = "http://192.168.18.18:9696/v2.0/port/"+datagrid_port.selectedItem.id;
+					var uri:URI = new URI(url);
+					var del:Delete = new Delete();
+					del.addHeader("X-Auth-Token",tokenId);
+					client.request(uri,del);
+				}
+				else
+				{
+				}
+			}
+			private function updateSubHandler(evt:Event):void
+			{
+				PopUpManager.addPopUp(us, this, true);
+				//subId = datagrid_subnet.selectedItem.name;
+				us.snet_name.text = datagrid_subnet.selectedItem.name;
+				us.snet_gateway.text = (datagrid_subnet.selectedItem.gateway_ip!="null")?datagrid_subnet.selectedItem.gateway_ip:"";
+				us.snet_closegateway.selected = (datagrid_subnet.selectedItem.gateway_ip=="null")?true:false;
+				us.snet_dhcp.selected = datagrid_subnet.selectedItem.enable_dhcp;
+				us.snet_dns.text = datagrid_subnet.selectedItem.dns_nameservers;
+				us.snet_router.text = datagrid_subnet.selectedItem.host_routes;
+			}
+			private function deleteSubHandler(evt:Event):void
+			{
+				Alert.show("确定删除？","系统提示",(1|2),this,delSubnetHandle);
+			}
+			private function delSubnetHandle(event:CloseEvent):void
+			{
+				if (event.detail==Alert.YES)
+				{
+					var client:HttpClient = new HttpClient();
+					client.listener.onData = function(event:HttpDataEvent):void
+					{
+						Alert.show("删除子网失败！","悲伤");
+					};
+					client.listener.onComplete = function(event:HttpResponseEvent):void
+					{
+						close();			
+					};
+					client.listener.onError = function(event:ErrorEvent):void
+					{
+						Alert.show("删除网络失败！","悲伤");
+						trace("onError-type = "+event.type+"-text = "+event.text);
+					};
+					var url:String = "http://192.168.18.18:9696/v2.0/subnets/"+datagrid_subnet.selectedItem.id;
+					var uri:URI = new URI(url);
+					var del:Delete = new Delete();
+					del.addHeader("X-Auth-Token",tokenId);
+					client.request(uri,del);
+				}
+				else
+				{
+				}
+			}
+			private function updatePortHandler(evt:Event):void
+			{
+				PopUpManager.addPopUp(up, this, true);
+				up.port_id.text = datagrid_port.selectedItem.id;
+				up.port_name.text = datagrid_port.selectedItem.name;
+				up.port_admin_status.selected = datagrid_port.selectedItem.admin_state_up;
+				up.port_device_id.text = datagrid_port.selectedItem.device_id;
+				up.port_device_ower.text = datagrid_port.selectedItem.device_owner;
+			}
+			private function deletePortHandler(evt:Event):void
+			{
+				Alert.show("确定删除？","系统提示",(1|2),this,delPortHandle);
+			}
+			private function createSubnet():void
+			{
+				PopUpManager.addPopUp(cs, this, true);
+			}
+			private function createPort():void
+			{
+				cp.networkId =networkId;
+				PopUpManager.addPopUp(cp, this, true);
+			}
+			private function createSubnetHandler(evt:Event):void
+			{
+				var paseDns:String = cs.snet_dns.text;
+				var paseRouter:String = cs.snet_router.text;
+				var paseIp:String = cs.snet_ip_pool.text;
+				var routers:Array = paseRouter.split(/\n/);
+				var dns:Array = paseDns.split(/\n/);
+				var ip:Array = paseIp.split(/\n/);
+				var router_out:String="";
+				var dns_out:String="";
+				var ip_out:String="";
+				if(routers.length!=0&&routers[0]!="")
+				{
+					for(var i:int=0;i<routers.length;i++)
+					{
+						var sd:String = '{"destination": "'+routers[i].slice(0,routers[i].indexOf(","))+'", "nexthop": "'+routers[i].slice(routers[i].indexOf(",")+1,routers[i].length)+'"}';
+						if (router_out == "")
+						{
+							router_out = sd;
+						}
+						else
+						{
+							router_out = router_out+","+sd;
+						}
+					}
+				}
+				if(dns.length!=0&&dns[0]!="")
+				{
+					for( var j:int = 0;j<dns.length;j++)
+					{
+						var sdt:String = dns[j];
+						if (dns_out == "")
+						{
+							dns_out = '"'+sdt+'"';
+						}
+						else
+						{
+							dns_out = dns_out+","+'"'+sdt+'"';
+						}
+					}
+				}
+				if(ip.length!=0&&ip[0]!="")
+				{
+					for(var k:int =0;k<ip.length;k++)
+					{
+						var sd:String = '{"start": "'+ip[k].slice(0,ip[k].indexOf(","))+'", "end": "'+ip[k].slice(ip[k].indexOf(",")+1,ip[k].length)+'"}';
+						if (ip_out == "")
+						{
+							ip_out = sd;
+						}
+						else
+						{
+							ip_out = ip_out+","+sd;
+						}
+					}
+				}
+				if(cs.snet_gateway.text==""&&ip_out=="")
+				{
+					var strFormat:String = '{"subnet":{"name":"'+cs.snet_name.text+'","network_id":"'+networkId+'","ip_version":4,"enable_dhcp":'+cs.snet_dhcp.selected+',"cidr":"'+cs.snet_cidr.text+'","host_routes":['+router_out+'],"dns_nameservers":['+dns_out+']}}';
+				}
+				else if(cs.snet_gateway.text==""&&ip_out!="")
+				{
+					var strFormat:String = '{"subnet":{"name":"'+cs.snet_name.text+'","network_id":"'+networkId+'","ip_version":4,"enable_dhcp":'+cs.snet_dhcp.selected+',"cidr":"'+cs.snet_cidr.text+'","allocation_pools":['+ip_out+'],"host_routes":['+router_out+'],"dns_nameservers":['+dns_out+']}}';
+				}
+				else if(cs.snet_gateway.text!=""&&ip_out!="")
+				{
+					var strFormat:String = '{"subnet":{"name":"'+cs.snet_name.text+'","network_id":"'+networkId+'","ip_version":4,"gateway_ip":"'+cs.snet_gateway.text+'","enable_dhcp":'+cs.snet_dhcp.selected+',"cidr":"'+cs.snet_cidr.text+'","host_routes":['+router_out+'],"dns_nameservers":['+dns_out+']}}';
+				}
+				else
+				{
+					var strFormat:String = '{"subnet":{"name":"'+cs.snet_name.text+'","network_id":"'+networkId+'","ip_version":4,"gateway_ip":"'+cs.snet_gateway.text+'","enable_dhcp":'+cs.snet_dhcp.selected+',"cidr":"'+cs.snet_cidr.text+'","host_routes":['+router_out+'],"dns_nameservers":['+dns_out+']}}';	
+				}
+				
+				var client:HttpClient = new HttpClient();
+				client.listener.onData = function(event:HttpDataEvent):void
+				{
+					var strData:String=event.readUTFBytes();
+					var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+					if(jsonPaser.subnet!=null)
+					{
+						Alert.show("创建成功！","恭喜");
+					}
+				};
+				client.listener.onComplete = function(event:HttpResponseEvent):void
+				{
+					PopUpManager.removePopUp(cs);
+					close();
+				};
+				client.listener.onError = function(event:ErrorEvent):void
+				{
+					trace("onError-type = "+event.type+"-text = "+event.text);
+				};
+				
+				var url:String = "http://192.168.18.18:9696/v2.0/subnets";
+				var uri:URI = new URI(url);
+				var post:Post = new Post();
+				post.addHeader("X-Auth-Token",tokenId);
+				post.contentType = "application/json";
+				var bya:ByteArray = new ByteArray();
+				bya.writeUTFBytes(strFormat);
+				bya.position=0;
+				post.body = bya;
+				client.request(uri,post);
+				
+			}
+			private function createPortHandler(evt:Event):void
+			{
+				var strFormat:String = '{"port":{"network_id":"'+networkId+'","name":"'+cp.port_name.text+'","device_owner":"'+cp.port_device_ower.text+'","device_id":"'+cp.port_device_id.text+'","admin_state_up":'+cp.port_admin_status.selected+'}}';
+				var client:HttpClient = new HttpClient();
+				client.listener.onData = function(event:HttpDataEvent):void
+				{
+					var strData:String=event.readUTFBytes();
+					var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+					if(jsonPaser.port!=null)
+					{
+						Alert.show("创建成功！","恭喜");
+					}
+				};
+				client.listener.onComplete = function(event:HttpResponseEvent):void
+				{
+					PopUpManager.removePopUp(cs);
+					close();
+				};
+				client.listener.onError = function(event:ErrorEvent):void
+				{
+					trace("onError-type = "+event.type+"-text = "+event.text);
+				};
+				
+				var url:String = "http://192.168.18.18:9696/v2.0/ports";
+				var uri:URI = new URI(url);
+				var post:Post = new Post();
+				post.addHeader("X-Auth-Token",tokenId);
+				post.contentType = "application/json";
+				var bya:ByteArray = new ByteArray();
+				bya.writeUTFBytes(strFormat);
+				bya.position=0;
+				post.body = bya;
+				client.request(uri,post);
+			}
+			private function getDetailSubnetHandler(evt:DeliverSubnetIdEvent):void
+			{
+				var client:HttpClient = new HttpClient();
+				client.listener.onData = function(event:HttpDataEvent):void
+				{
+					var strData:String=event.readUTFBytes();
+					var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+					var jsonArray:Object = jsonPaser.subnet as Object;
+					var dnsServer:Array = jsonArray.dns_nameservers;
+					var allocationPool:Array = jsonArray.allocation_pools; 
+					var hostRouter:Array = jsonArray.host_routes;
+					var strDns:String = "";
+					var strRouter:String = "";
+					var strIpPool:String = "";
+					for(var j:int=0;j<dnsServer.length;j++)
+					{
+						if(strDns=="")
+						{
+							strDns = dnsServer[j];
+						}
+						else
+						{
+							strDns = strDns+"\n"+dnsServer[j];
+						}
+					}
+					jsonArray.dns_nameservers = strDns;
+					for( j=0;j<hostRouter.length;j++)
+					{
+						if(strRouter=="")
+						{
+							strRouter = hostRouter[j].destination+","+hostRouter[j].nexthop;
+						}
+						else
+						{
+							strRouter = strRouter+"\n"+hostRouter[j].destination+","+hostRouter[j].nexthop;
+						}
+					}
+					jsonArray.host_routes = strRouter;
+					for(var k:int =0;k<allocationPool.length;k++)
+					{
+						if(strIpPool=="")
+						{
+							strIpPool = allocationPool[k].start+","+allocationPool[k].end;
+						}
+						else
+						{
+							strIpPool = strIpPool+"\n"+allocationPool[k].start+","+allocationPool[k].end;
+						}
+					}
+					jsonArray.allocation_pools= strIpPool;
+					//将获得的数据在页面中显示
+					gdsi.net_name = jsonArray.name;
+					gdsi.net_admin_status  = (jsonArray.admin_status==true)?"up":"down";
+					gdsi.net_dns = jsonArray.dns_nameservers;
+					gdsi.net_gateway = jsonArray.gateway_ip;
+					gdsi.net_ip_pool  = jsonArray.allocation_pools;
+					gdsi.net_ip_scope = jsonArray.cidr;
+					gdsi.net_ip_version  = jsonArray.ip_version;
+					gdsi.net_tenant= jsonArray.tenant_id;
+					gdsi.net_dhcp  =(jsonArray.enable_dhcp==true)?"Yes":"No";
+					gdsi.net_routers = jsonArray.hostRouter;
+					showDetailSubnet();
+				};
+				client.listener.onError = function(event:ErrorEvent):void
+				{
+					trace("onError-type = "+event.type+"-text = "+event.text);
+				};
+				var url:String = "http://192.168.18.18:9696/v2.0/subnets/"+evt.data;
+				var uri:URI = new URI(url);
+				var request:HttpRequest = new Get();
+				request.addHeader("contentType","application/json");
+				request.addHeader("Accept","application/json");
+				request.addHeader("X-Auth-Token",tokenId);
+				request.addHeader("resultFormat","text");
+				client.request(uri,request);
+			}
+			private function showDetailSubnet():void
+			{
+				PopUpManager.addPopUp(gdsi,this,true)
+			}
+			private function getDetailPortHandler(evt:DeliverPortIdEvent):void
+			{
+				var client:HttpClient = new HttpClient();
+				client.listener.onData = function(event:HttpDataEvent):void
+				{
+					var strData:String=event.readUTFBytes();
+					var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+					var jsonArray:Object = jsonPaser.port as Object;
+					var securityGroup:Array = jsonArray.security_groups; 
+					var fixedIP:Array = jsonArray.fixed_ips;
+					var strVif:String = "";
+					var strGroup:String = "";
+					var strIp:String = "";
+					jsonArray["binding:vif_details"] = "端口过滤:"+jsonArray["binding:vif_details"].ovs_hybrid_plug+",OVS混合配置:"	+jsonArray["binding:vif_details"].port_filter;
+					for( var j:int=0;j<securityGroup.length;j++)
+					{
+						if(strGroup=="")
+						{
+							strGroup = securityGroup[j];
+						}
+						else
+						{
+							strGroup = strGroup+"\n"+securityGroup[j];
+						}
+					}
+					jsonArray.security_groups = strGroup;
+					for(var k:int =0;k<fixedIP.length;k++)
+					{
+						if(strIp=="")
+						{
+							strIp = "子网号"+fixedIP[k].subnet_id+",IP地址"+fixedIP[k].ip_address;
+						}
+						else
+						{
+							strIp = strIp+"\n"+"子网号"+fixedIP[k].subnet_id+",IP地址"+fixedIP[k].ip_address;
+						}
+					}
+					jsonArray.fixed_ips= strIp;
+					//将获得的数据在页面中显示
+					gdpi.names = jsonArray.name;
+					gdpi.admin_status  = (jsonArray.admin_status==true)?"up":"down";
+					gdpi.port_status = jsonArray.status;
+					gdpi.vif_type = jsonArray["binding:vif_type"];
+					gdpi.security_group  = jsonArray.security_groups;
+					gdpi.device_owner = jsonArray.device_owner;
+					gdpi.binding_ip  = jsonArray.fixed_ips;
+					gdpi.vif_detail= jsonArray["binding:vif_details"];
+					showDetailPort();
+				};
+				client.listener.onError = function(event:ErrorEvent):void
+				{
+					trace("onError-type = "+event.type+"-text = "+event.text);
+				};
+				var url:String = "http://192.168.18.18:9696/v2.0/ports/"+evt.data;
+				var uri:URI = new URI(url);
+				var request:HttpRequest = new Get();
+				request.addHeader("contentType","application/json");
+				request.addHeader("Accept","application/json");
+				request.addHeader("X-Auth-Token",tokenId);
+				request.addHeader("resultFormat","text");
+				client.request(uri,request);
+			}
+			private function showDetailPort():void
+			{
+				PopUpManager.addPopUp(gdpi,this,true);
+			}
+		]]>
+	</fx:Script>
+	
+	<!--设计界面-->
+	<s:Group id="myGroup" width="1000" height="624" >
+	<s:Label x="16.15" y="15.7" text="网络概况：" width="117" height="24" fontSize="20"/>
+	<s:Label color="#000000" fontWeight="normal" fontSize="14" text="网络ID：" height="25" textAlign="left" top="45" left="30" width="82" verticalAlign="middle"/>
+	<s:Label y="75.3" text="标签" width="340" height="25" left="30" id="net_id"/>
+	<s:Label color="#000000" fontWeight="normal" fontSize="14" text="云租户：" height="25" textAlign="left" top="98.8" left="30" width="82" verticalAlign="middle"/>
+	<s:Label y="129.1" text="标签" width="340" height="25" left="30" id="tenant_id"/>
+	<s:Label color="#000000" fontWeight="normal" fontSize="14" text="管理员状态：" height="25" textAlign="left" top="152.7" left="30" width="113" verticalAlign="middle"/>
+	<s:Label y="183" text="标签" width="340" height="25" left="30" id="net_admin_state"/>
+	<s:Label color="#000000" fontWeight="normal" fontSize="14" text="共享：" height="25" textAlign="left" top="209.15" left="29.95" width="82" verticalAlign="middle"/>
+	<s:Label y="237.45" text="标签" width="340" height="25" left="30" id="net_shared"/>
+	<s:Label color="#000000" fontWeight="normal" fontSize="14" text="外部网络：" height="25" textAlign="left" top="265.1" left="30" width="82" verticalAlign="middle"/>
+	<s:Label y="293.4" text="标签" width="340" height="25" left="30" id="net_public"/>
+	<s:Label x="10.15" y="638.7" text="端口：" width="117" height="24" fontSize="20"/>
+	<s:Label x="16.15" y="15.7" text="网络概况：" width="117" height="24" fontSize="20"/>
+	<s:Label x="14.15" y="394.7" text="子网：" width="117" height="24" fontSize="20"/>
+	<s:Label color="#000000" fontWeight="normal" fontSize="14" text="网络状态：" height="25" textAlign="left" top="323.1" left="30" width="82" verticalAlign="middle"/>
+	<s:Label y="353.4" text="标签" width="340" height="25" left="30" id="status"/>
+	<s:Button label="创建子网" width="168" height="20" top="422" right="20" click="createSubnet()"/>
+	<mx:DataGrid id="datagrid_subnet" height="175" dataProvider="{subnetArray}" left="20" right="20" top="442">
+		<mx:columns>
+			<mx:DataGridColumn headerText="ID" dataField="id" visible="false"/>
+			<mx:DataGridColumn headerText="名称" dataField="name">
+				<mx:itemRenderer>
+					<fx:Component> 
+						<mx:LinkButton label="{data.name}" toolTip="查看子网详情" click="searchSubnetBtn(event);" color="#ff0606" fontWeight="bold">
+							<fx:Script>
+								<![CDATA[
+									import events.DeliverSubnetIdEvent;
+									private function searchSubnetBtn(event:MouseEvent):void
+									{
+										dispatchEvent(new DeliverSubnetIdEvent(data.id));
+									}
+								]]>
+							</fx:Script> 
+						</mx:LinkButton>
+					</fx:Component>
+				</mx:itemRenderer> 
+			</mx:DataGridColumn>
+			<mx:DataGridColumn headerText="CIDR" dataField="cidr"/>
+			<mx:DataGridColumn headerText="IP版本" dataField="ip_version"/>
+			<mx:DataGridColumn headerText="网关IP" dataField="gateway_ip"/>
+			<mx:DataGridColumn headerText="DHCP" dataField="enable_dhcp"/>
+			<mx:DataGridColumn headerText="动作">
+				<mx:itemRenderer>
+					<fx:Component> 
+						<mx:HBox width="100" height="25" horizontalAlign="center">
+							<s:Button width="45" height="25" label="编辑" click="updateSubnetBtn(event);"/>
+							<s:Button width="45" height="25" label="删除" click="deleteSubnetBtn(event);"/>
+							<fx:Script>
+								<![CDATA[
+									private function updateSubnetBtn(event:MouseEvent):void
+									{
+										dispatchEvent(new Event("UpdateSubnet"));
+									}
+									private function deleteSubnetBtn(event:MouseEvent):void
+									{
+										dispatchEvent(new Event("DeleteSubnet"));
+									}
+								]]>
+							</fx:Script>
+						</mx:HBox>
+					</fx:Component> 
+				</mx:itemRenderer> 
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	<s:Button label="创建端口" width="168" height="20" top="669" right="20" click="createPort()"/>
+	<mx:DataGrid height="175" id="datagrid_port" dataProvider="{portArray}" left="20" right="20" top="689">
+		<mx:columns>
+			<mx:DataGridColumn headerText="ID" dataField="id"/>
+			<mx:DataGridColumn headerText="名称" dataField="name">
+				<mx:itemRenderer>
+					<fx:Component> 
+						<mx:LinkButton label="{data.name}" toolTip="查看端口详情" click="searchPortBtn(event);" color="#ff0606" fontWeight="bold">
+							<fx:Script>
+								<![CDATA[
+									import events.DeliverPortIdEvent;
+									private function searchPortBtn(event:MouseEvent):void
+									{
+										dispatchEvent(new DeliverPortIdEvent(data.id));
+									}
+								]]>
+							</fx:Script> 
+						</mx:LinkButton>
+					</fx:Component>
+				</mx:itemRenderer> 
+			</mx:DataGridColumn>
+			<mx:DataGridColumn headerText="绑定主机" dataField="binding:host_id"/>
+			<mx:DataGridColumn headerText="状态" dataField="status"/>
+			<mx:DataGridColumn headerText="端口IP" dataField="fixed_ips"/>
+			<mx:DataGridColumn headerText="管理员状态" dataField="admin_state_up"/>
+			<mx:DataGridColumn headerText="设备ID" dataField="device_id" />
+			<mx:DataGridColumn headerText="设备名称" dataField="device_owner" />
+			<mx:DataGridColumn headerText="动作">
+				<mx:itemRenderer>
+					<fx:Component> 
+						<mx:HBox width="100" height="25" horizontalAlign="center">
+							<s:Button width="45" height="25" label="编辑" click="updatePortBtn(event);"/>
+							<s:Button width="45" height="25" label="删除" click="deletePortBtn(event);"/>
+							<fx:Script>
+								<![CDATA[
+									private function updatePortBtn(event:MouseEvent):void
+									{
+										dispatchEvent(new Event("UpdatePort"));
+									}
+									private function deletePortBtn(event:MouseEvent):void
+									{
+										dispatchEvent(new Event("DeletePort"));
+									}
+								]]>
+							</fx:Script>
+						</mx:HBox>
+					</fx:Component> 
+				</mx:itemRenderer> 
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+	</s:Group>
+	<s:VScrollBar viewport="{myGroup}" height="{myGroup.height}" left="{myGroup.x + myGroup.width-10}" />	
+</s:TitleWindow>

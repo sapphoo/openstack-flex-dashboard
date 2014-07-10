@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"  title="端口详情" 
+			   fontSize="12"  borderColor="#232020" 
+			   fontWeight="bold"  color="#283584" width="578" height="630" 
+			   close="close()" creationComplete="Init()">
+	<fx:Script>
+		<![CDATA[
+			import mx.managers.PopUpManager;
+			[Bindable]
+			var vif_type:String="";
+			[Bindable]
+			var names:String="";
+			[Bindable]
+			var admin_status:String ="";
+			[Bindable]
+			var port_status:String ="";
+			[Bindable]
+			var device_owner:String ="";
+			[Bindable]
+			var security_group:String ="";
+			[Bindable]
+			var binding_ip:String ="";
+			[Bindable]
+			var vif_detail:String ="";
+			<!--定义函数close(),init()-->
+			private function Init():void
+			{
+				this.x=this.parent.width/2-this.width/2;
+				this.y=this.parent.height/2-this.height/2;
+			}
+			private function close():void{
+				
+				PopUpManager.removePopUp(this);
+			}
+			private function create():void
+			{
+				close();
+			}
+		]]>
+	</fx:Script>
+	
+	<!--设计界面-->
+	<s:Label color="#000000" fontWeight="normal" fontSize="12" text="端口名称：" height="25" textAlign="center" top="15" left="24"/>
+	<s:Label text="管理员状态" color="#000000" fontWeight="normal" top="65" left="24" height="25" />
+	<s:Label text="端口状态：" top="115" left="24" height="25" />
+	<s:Label text="绑定虚拟网卡类型：" left="24" top="165" height="25"/>
+	<s:Label text="设备所有者" left="25" top="330" height="25" />
+	<s:Label text="安全组" left="24" top="215" height="25" />
+	<s:Label text="绑定IP" left="24" top="379" height="25" />
+	<s:Label  width="300" height="25" id="port_vif_type" top="190" left="24" text="{vif_type}"/>
+	<s:Label x="24" text="{names}" width="300" height="25" id="port_name" top="40" />
+	<s:Label text="{admin_status}" width="300" height="25" id="port_admin_status" top="90" left="24" />
+	<s:Label text="{port_status}" width="300" height="25" id="port_port_status" left="24" top="140" />
+	<s:Label text="{device_owner}" width="300" height="25" id="port_device_owner" left="24" top="355" />
+	<s:TextArea height="75" id="port_security_group" text="{security_group}" left="24" top="240" editable="false" width="372"/>
+	<s:TextArea x="24" y="403" height="75" id="port_binding_ip" text="{binding_ip}" editable="false" width="372"/>
+	<s:TextArea id="port_vif_detail" text="{vif_detail}" height="75" left="24" top="513" editable="false" width="372"/>
+	<s:Label x="23" y="489" text="虚拟网卡绑定详情"/>
+</s:TitleWindow>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark" 
+			   xmlns:mx="library://ns.adobe.com/flex/mx" minWidth="955" minHeight="600">
+	<s:layout>
+		<s:BasicLayout/>
+	</s:layout>
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			var str:String;
+			private function getText():void
+			{
+				str = textArea.text;
+				var result1:Array = str.split(/\n/);
+				var s:String = "192.168.18.0/24,10.56.1.254\n192.168.19.0/24,10.56.1.254";
+				var result2:Array = s.split(/\n/);
+				for(var i:int=0;i<result2.length;i++)
+				{
+					var sd:String = result2[i];
+					trace(sd.slice(0,sd.indexOf(",")));
+					trace(sd.slice(sd.indexOf(",")+1,sd.length));
+					
+				}
+			}
+		]]>
+	</fx:Script>
+	<s:TextArea x="276" y="147" id="textArea"/>
+	<s:Button click="getText()" x="338" y="349" label="dd"/>
+
+</s:Application>

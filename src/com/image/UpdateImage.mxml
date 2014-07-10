@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"  title="修改镜像信息" 
+			   fontSize="12"  borderColor="#232020" 
+			   fontWeight="bold"  color="#283584" width="294" height="298" 
+			   close="Close()" creationComplete="Init()">
+	
+	<!--定义函数close(),init()-->
+	<fx:Script>
+		<![CDATA[
+			import mx.managers.PopUpManager; 
+			private function Init():void
+			{
+				this.x=this.parent.width/2-this.width/2;
+				this.y=this.parent.height/2-this.height/2;
+			}
+			private function Close():void{//关闭窗口函数
+				PopUpManager.removePopUp(this);
+			}
+			private function update():void
+			{
+				this.dispatchEvent(new Event("UpdateImage"));
+				PopUpManager.removePopUp(this);
+			}
+		]]>
+	</fx:Script>
+	
+	<!--设计界面-->
+	<s:Label color="#000000" fontWeight="normal" fontSize="12" text="镜像名称" height="25" textAlign="center" top="16" left="24"/>
+	<s:TextInput width="162" height="25" top="13" left="92" id="iname"/>
+	<s:Label text="类        型" color="#000000" fontWeight="normal" top="56" left="24" height="25" />
+	<s:TextInput width="162" height="25" top="53" left="92" id="container_format" editable="false"/>
+	<s:Label text="状        态" top="96" left="24" height="25" />
+	<s:TextInput width="162" top="93" height="25" left="92" id="status" editable="false"/>
+	<s:Label text="受  保  护" left="24" top="136" height="25"/>
+	<s:TextInput top="136" width="162" height="25" left="92" id="isprotected" editable="false"/>
+	<s:Label text="格  式  化" left="24" top="176" height="25" />
+	<s:TextInput top="176" left="92" height="25" width="162" id="disk_format" editable="false"/>
+	
+	<mx:ControlBar height="43" width="100%" bottom="0" contentBackgroundColor="#C5C3C3" dropShadowVisible="true">
+		<mx:Button fontWeight="normal" color="#0F28BB" textAlign="center" label="完成" click="update()"/>
+	</mx:ControlBar>
+	
+</s:TitleWindow>

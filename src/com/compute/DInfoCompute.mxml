@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" creationComplete="init()">
+	<fx:Script>
+		<![CDATA[
+			/*
+			*操作主要涉及CAUD:增删改查
+			*由于更新镜像用的是Patch操作，但是Flex中没有patch操作，所以没有实现更新操作。 
+			*/
+			import com.adobe.net.URI;
+			import com.adobe.serialization.json.JSON;
+			import com.image.UpdateImage;
+			import com.image.UploadImage;
+			import events.DeliverImageIdEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			
+			import org.httpclient.HttpClient;
+			import org.httpclient.HttpRequest;
+			import org.httpclient.events.HttpDataEvent;
+			import org.httpclient.events.HttpListener;
+			import org.httpclient.events.HttpResponseEvent;
+			import org.httpclient.events.HttpStatusEvent;
+			import org.httpclient.http.Delete;
+			import org.httpclient.http.Get;
+			import org.httpclient.http.Post;
+			import org.httpclient.http.Put;
+			[Bindable]
+			public var tokenId:String;
+			public var tenantId:String;
+			[Bindable]
+			private var arrcoll:ArrayCollection = new ArrayCollection();
+			//private var networkId:String;
+
+			private var uploadImage:UploadImage;
+			private function init():void
+			{
+				datagrid_compute.addEventListener("Delete",deleteComputeHandler,true);
+			}
+			public function searchCompute():void
+			{
+				var client:HttpClient = new HttpClient();
+				client.listener.onData = function(event:HttpDataEvent):void
+				{
+					var strData:String=event.readUTFBytes();
+					var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+					var jsonArray:Array = jsonPaser.servers as Array;
+					arrcoll = new ArrayCollection(jsonArray);
+					arrcoll.filterFunction = function filterFunc(value:Object):Object
+					{
+						value.flavor = value.flavor.id;
+						value.image = value.image.id;
+						value.addresses = (value.addresses.vpe!=null)?value.addresses.vpe[0].addr:value.addresses.public[0].addr;
+						if(value.flavor==1)
+						{
+							value.flavor = "内核:1|内存:512MB|根磁盘:1GB|交换空间:0GB";
+						}
+						if(value.flavor==2)
+						{
+							value.flavor = "内核:1|内存:2048MB|根磁盘:20GB|交换空间:0GB";
+						}
+						if(value.flavor==3)
+						{
+							value.flavor = "内核:2|内存:4096MB|根磁盘:40GB|交换空间:0GB";
+						}
+						if(value.flavor==4)
+						{
+							value.flavor = "内核:4|内存:8192MB|根磁盘:80GB|交换空间:0GB";
+						}
+						if(value.flavor==5)
+						{
+							value.flavor = "内核:8|内存:1638MB|根磁盘:160GB|交换空间:0GB";
+						}
+						if(value["OS-SRV-USG:terminated_at"]=="")
+						{
+							value["OS-SRV-USG:terminated_at"] = "未终止";
+						}
+						if(value["OS-SRV-USG:terminated_at"]==null)
+						{
+							value["OS-SRV-USG:terminated_at"] = "未终止";
+						}
+						value["OS-EXT-STS:task_state"] = (value["OS-EXT-STS:task_state"]==null)?"无任务":value["OS-EXT-STS:task_state"];
+						return true;
+					};
+					arrcoll.refresh();
+					
+				};
+				client.listener.onComplete = function(event:HttpResponseEvent):void
+				{
+					trace("oncomplete");
+				};
+				client.listener.onError = function(event:ErrorEvent):void
+				{
+					trace("onError-type = "+event.type+"-text = "+event.text);
+				};
+				var url:String = "http://192.168.18.18:8774/v2/"+tenantId+"/servers/detail";
+				var uri:URI = new URI(url);
+				var request:HttpRequest = new Get();
+				request.addHeader("Content-Type","application/json");
+				request.addHeader("Accept","application/json");
+				request.addHeader("X-Auth-Token",tokenId);
+				request.addHeader("resultFormat","text");
+				client.request(uri,request);
+			}
+			private function createCompute():void
+			{
+				
+			}
+			private function deleteComputeHandler(evt:Event):void
+			{
+				Alert.show("确定删除？","系统提示",(1|2),this,delItemHandle);	
+			}
+			private function delItemHandle(event:CloseEvent):void
+			{
+				if (event.detail==Alert.YES){
+					var client:HttpClient = new HttpClient();
+					client.listener.onData = function(event:HttpDataEvent):void
+					{
+						trace("onData");
+						var strData:String=event.readUTFBytes();
+						trace(strData);
+						
+					};
+					client.listener.onComplete = function(event:HttpResponseEvent):void
+					{
+						trace(event.type);
+						Alert.show("镜像删除成功！","恭喜");
+						searchCompute();
+						
+					};
+					client.listener.onError = function(event:ErrorEvent):void
+					{
+						trace("onError-type = "+event.type+"-text = "+event.text);
+					};
+					var url:String = "http://192.168.18.18:9292/v2/images/"+datagrid_compute.selectedItem.id;
+					var uri:URI = new URI(url);
+					var del:Delete = new Delete();
+					del.addHeader("X-Auth-Token",tokenId);
+					client.request(uri,del);
+				}
+				else
+				{
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<s:Rect left="0" top="0" alpha="0.8" height="35" width="100%"> 
+		<s:fill> 
+			<s:LinearGradient rotation="90"> 
+				<s:GradientEntry color="#0083C7" ratio="0"/> 
+				<s:GradientEntry color="#3BA5DF" ratio="1"/> 
+			</s:LinearGradient> 
+		</s:fill> 
+	</s:Rect>
+	<s:Label left="0" width="85" height="25" color="#FFFFFF" fontSize="16" text="云主机信息"
+			 textAlign="center" verticalAlign="middle" top="4"/>
+	<s:Button right="10" width="91" height="25" label="创建云主机" color="#FFFFFF"
+			  fontSize="14" click="createCompute()" chromeColor="#3FB5E0" y="4"/>
+	<mx:DataGrid id="datagrid_compute" left="0" top="35" right="0" dataProvider="{arrcoll}" textAlign="center">
+		<mx:columns>
+			<mx:DataGridColumn  headerText="云主机名称" dataField="name"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="镜像名称" dataField="image"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="IP地址" dataField="addresses"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="配置" dataField="flavor"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="所在节点" dataField="OS-EXT-SRV-ATTR:host"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="状态" dataField="OS-EXT-STS:vm_state"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="可用域" dataField="OS-EXT-AZ:availability_zone"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="任务" dataField="OS-EXT-STS:task_state"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="电源状态" dataField="OS-EXT-STS:power_state"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="创建时间" dataField="created"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="启动时间" dataField="OS-SRV-USG:launched_at"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="终止时间" dataField="OS-SRV-USG:terminated_at"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="动作" dataField="">
+				<mx:itemRenderer>
+					<fx:Component> 
+						<mx:HBox width="100" height="25" horizontalAlign="center">
+							<s:Button width="45" height="25" label="编辑" click="updateBtn(event);"/>
+							<s:Button width="45" height="25" label="删除" click="deleteBtn(event);"/>
+							<fx:Script>
+								<![CDATA[
+									private function updateBtn(event:MouseEvent):void
+									{
+										dispatchEvent(new Event("Update"));
+									}
+									private function deleteBtn(event:MouseEvent):void
+									{
+										dispatchEvent(new Event("Delete"));
+									}
+								]]>
+							</fx:Script>
+						</mx:HBox>
+					</fx:Component> 
+				</mx:itemRenderer> 
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+</s:Group>
+

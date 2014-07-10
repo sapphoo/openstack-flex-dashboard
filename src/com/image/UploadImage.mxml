@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"  title="上传镜像" 
+			   fontSize="12"  borderColor="#232020" 
+			   fontWeight="bold"  color="#283584" width="652" height="282" 
+			   close="close()" creationComplete="Init()">
+	<fx:Script>
+		<![CDATA[
+			import com.adobe.net.URI;
+			import com.adobe.serialization.json.*;
+			import mx.controls.Alert;
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.managers.PopUpManager;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			
+			import org.httpclient.HttpClient;
+			import org.httpclient.HttpHeader;
+			import org.httpclient.HttpRequest;
+			import org.httpclient.HttpResponse;
+			import org.httpclient.events.HttpDataEvent;
+			import org.httpclient.events.HttpRequestEvent;
+			import org.httpclient.events.HttpResponseEvent;
+			import org.httpclient.events.HttpStatusEvent;
+			import org.httpclient.http.Get;
+			import org.httpclient.http.Put;
+			import org.httpclient.http.multipart.Multipart;
+			import org.httpclient.http.multipart.Part;
+			public var obj:String;
+			public var fileAddr:String;
+			public var tokenId:String;
+			
+			var http_Service:HTTPService = new HTTPService();
+			<!-- 定义函数close(),init() -->
+			private function Init():void
+			{//初始化窗口大小
+				this.x=this.parent.width/2-this.width/2;
+				this.y=this.parent.height/2-this.height/2;
+				location.text = fileAddr;
+			}
+			private function close():void{//关闭窗口函数
+				this.dispatchEvent(new Event("UploadImage"));
+				PopUpManager.removePopUp(this);
+			}
+			private function upload():void
+			{
+				if(iAddr.text!="")
+				{
+					obj= iAddr.text;
+					var client:HttpClient = new HttpClient();
+					client.listener.onData = function(event:HttpDataEvent):void
+					{
+						var strData:String=event.readUTFBytes();
+						var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+						this.dispatchEvent(new Event("CompleteUpload"));
+					};
+					client.listener.onComplete = function(event:HttpResponseEvent):void
+					{
+						Alert.show("镜像上传成功！","恭喜");
+						close();
+					};
+					client.listener.onError = function(event:ErrorEvent):void
+					{
+						trace("onError-type = "+event.type+"-text = "+event.text);
+					};
+					
+					var url:String = "http://192.168.18.18:9292"+fileAddr;
+					var uri:URI = new URI(url);
+					var put:Put = new Put();
+					put.addHeader("X-Auth-Token",tokenId);
+					put.contentType = "application/octet-stream";
+					var bya:ByteArray = new ByteArray();
+					bya.writeUTFBytes(iAddr.text);
+					bya.position=0;
+					put.body = bya;
+					client.request(uri,put);
+				}
+				else
+				{
+					Alert.show("请输入地址","错误");
+				}
+				
+			}
+			private function cancle():void
+			{
+				iAddr.text = "";
+				isUpload.selected=false;
+			}
+		]]>
+	</fx:Script>
+	
+	<!--设计界面-->
+	<s:Label color="#000000" fontWeight="normal" fontSize="12" text="镜像地址" height="25" textAlign="center" top="48" left="67"/>
+	<s:TextInput width="220" height="25" top="45" left="135" id="iAddr"/>
+	<s:Label text="文件位置" color="#000000" fontWeight="normal" top="88" left="67" height="25" />
+	<s:TextInput width="220" height="25" top="84" left="135" id="location" editable="false"/>
+	
+	<s:CheckBox label="上传" width="71" color="#132DCC" selected="false" enabled="true" top="146" left="283" id="isUpload"/>
+	<s:Label text="说明：" top="10" height="20" right="203" left="403"/>
+	<s:Label text="指定镜像上传到镜像服务" top="30" height="20" right="99" width="148"/>
+	<s:Label text="目前只支持HTTP URL可用镜像。" height="20" top="50" right="56" width="191"/>
+	<s:Label text="镜像服务必须能够访问到镜像地址。" height="20" top="70" right="34" width="213"/>
+	<s:Label text="支持镜像的二进制压缩格式(.zip,.tar,.gz.)" height="20" top="90" right="11.149994" width="235.85"/>
+	
+	
+	<s:Label text="请注意： " right="187" width="60" height="20" top="131"/>
+	<s:Label text="镜像地址必须是有效的直接定位到镜像" height="20" top="151" x="403"/>
+	<s:Label text="URL被重定向将导致镜像不可用" height="20" top="171" right="21" width="226"/>
+	<mx:ControlBar height="43" width="100%" bottom="0" contentBackgroundColor="#C5C3C3" dropShadowVisible="true">
+		<mx:Button fontWeight="normal" color="#0F28BB" textAlign="center" label="上传" click="upload()"/>
+		<mx:Button label="取消" fontWeight="normal" textAlign="center" click="cancle()"/>
+	</mx:ControlBar>
+</s:TitleWindow>

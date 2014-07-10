@@ -1,0 +1,24 @@
+/* CSS file */
+@namespace s "library://ns.adobe.com/flex/spark";
+@namespace mx "library://ns.adobe.com/flex/mx";
+.tab{    
+	cornerRadii: 5, 5, 0, 0;     
+	borderColors: #EE1515, #EE1515;     
+	overBorderColors: #EE1515, #EE1515;    
+	selectedBorderColors: #EE1515, #EE1515;     
+	borderThickness: 1;     
+	borderAlpha: 1;     
+	fillColors: #EE1515, #EE1515;    
+	fillAlphas: 1, 1;     
+	fillColorRatios: 0, 255;     
+	overFillColors: #EE1515, #EE1515;     
+	overFillAlphas: 1, 1;     
+	overFillColorRatios: 0, 255;     
+	selectedFillColors: #EE1515, #EE1515;     
+	selectedFillAlphas: 1, 1;     
+	selectedFillColorRatios: 111, 255;     
+	highlightAlphas: 0, 0;     
+	color: #EE1515;     
+	textRollOverColor: #000000;    
+	fontSize: 13;    
+} 

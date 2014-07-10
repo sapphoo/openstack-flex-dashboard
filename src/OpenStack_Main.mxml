@@ -1,0 +1,405 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Application xmlns:fx="http://ns.adobe.com/mxml/2009"
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"
+			   xmlns:com="com.*"
+			   minWidth="955" minHeight="600" preloaderChromeColor="#000000" 
+			   creationComplete = "init()"
+			   >
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Style source="navigator.css" />
+	<fx:Script>
+		<![CDATA[
+			import as3.SystemShowInfo;
+			
+			import com.network.DInfoNetwork;
+			import com.image.DInfoImage;
+			import com.flavor.DInfoFlavor;
+			import com.ShowResource;
+			import com.compute.DInfoCompute;
+			import com.adobe.net.URI;
+			import com.adobe.serialization.json.*;
+
+		
+			import events.DeleteFlavorEvent;
+			import events.DeleteImageEvent;
+			import events.UpdateFlavorEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.collections.ArrayList;
+			import mx.controls.Alert;
+			import mx.controls.DataGrid;
+			import mx.controls.dataGridClasses.DataGridColumn;
+			import mx.events.CloseEvent;
+			import mx.events.DataGridEvent;
+			import mx.managers.PopUpManager;
+			import mx.messaging.AbstractConsumer;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.rpc.http.HTTPService;
+			
+			import org.httpclient.HttpClient;
+			import org.httpclient.HttpRequest;
+			import org.httpclient.HttpResponse;
+			import org.httpclient.events.HttpDataEvent;
+			import org.httpclient.events.HttpRequestEvent;
+			import org.httpclient.events.HttpResponseEvent;
+			import org.httpclient.events.HttpStatusEvent;
+			import org.httpclient.http.Delete;
+			import org.httpclient.http.Get;
+			
+			import spark.components.HGroup;
+			import spark.components.VGroup;
+			
+			var username:String = "";
+			var tokenId:String = "";
+			var tenantId:String = "";
+			var tenantName:String = "";
+			//var cI:CreateImage = new CreateImage();
+			var showInfo:SystemShowInfo =new SystemShowInfo();
+			var xml:XML;
+			var http_Service:HTTPService = new HTTPService();
+			var arraylist:ArrayList=new ArrayList();
+			[Bindable]
+			var arrcoll:ArrayCollection = new ArrayCollection();
+			var obj:Object;
+			
+			private function init():void
+			{
+//				var objs:SharedObject =SharedObject.getLocal("cookie","/");
+//				xml = objs.data.xmlstr;
+//				objs.clear();
+//				var NS:Namespace = xml.namespace();
+//				tokenId= xml.NS::token.@id;
+//				trace(tokenId);
+//				tenantName = xml.NS::token.NS::tenant.@name;
+//				userName = xml.NS::user.@username;
+//				tenantId = xml.NS::token.NS::tenant.@id;
+				username = "admin";
+				tenantName = "admin";
+				tenantId = "8596b1e91cd64352aeda95cf2e6272d5";
+				tokenId = "MIINmwYJKoZIhvcNAQcCoIINjDCCDYgCAQExCTAHBgUrDgMCGjCCC-EGCSqGSIb3DQEHAaCCC+IEggveeyJhY2Nlc3MiOiB7InRva2VuIjogeyJpc3N1ZWRfYXQiOiAiMjAxNC0wNy0wOVQwNzoyNTozNS4yOTcxMTgiLCAiZXhwaXJlcyI6ICIyMDE0LTA3LTEwVDA3OjI1OjM1WiIsICJpZCI6ICJwbGFjZWhvbGRlciIsICJ0ZW5hbnQiOiB7ImRlc2NyaXB0aW9uIjogImFkbWluIHRlbmFudCIsICJlbmFibGVkIjogdHJ1ZSwgImlkIjogIjg1OTZiMWU5MWNkNjQzNTJhZWRhOTVjZjJlNjI3MmQ1IiwgIm5hbWUiOiAiYWRtaW4ifX0sICJzZXJ2aWNlQ2F0YWxvZyI6IFt7ImVuZHBvaW50cyI6IFt7ImFkbWluVVJMIjogImh0dHA6Ly8xOTIuMTY4LjE4LjE4Ojg3NzQvdjIvODU5NmIxZTkxY2Q2NDM1MmFlZGE5NWNmMmU2MjcyZDUiLCAicmVnaW9uIjogIlJlZ2lvbk9uZSIsICJpbnRlcm5hbFVSTCI6ICJodHRwOi8vMTkyLjE2OC4xOC4xODo4Nzc0L3YyLzg1OTZiMWU5MWNkNjQzNTJhZWRhOTVjZjJlNjI3MmQ1IiwgImlkIjogIjE5ZmRiYTEwMTFhZTQ2ZjlhMjgwYTE0OTdhYmI3YzY2IiwgInB1YmxpY1VSTCI6ICJodHRwOi8vMTkyLjE2OC4xOC4xODo4Nzc0L3YyLzg1OTZiMWU5MWNkNjQzNTJhZWRhOTVjZjJlNjI3MmQ1In1dLCAiZW5kcG9pbnRzX2xpbmtzIjogW10sICJ0eXBlIjogImNvbXB1dGUiLCAibmFtZSI6ICJub3ZhIn0sIHsiZW5kcG9pbnRzIjogW3siYWRtaW5VUkwiOiAiaHR0cDovLzE5Mi4xNjguMTguMTg6OTY5Ni8iLCAicmVnaW9uIjogIlJlZ2lvbk9uZSIsICJpbnRlcm5hbFVSTCI6ICJodHRwOi8vMTkyLjE2OC4xOC4xODo5Njk2LyIsICJpZCI6ICI4NjNmMTY1YTQ1MjU0MjhhODc5MmQ4ZDE5YWJhZjIwZSIsICJwdWJsaWNVUkwiOiAiaHR0cDovLzE5Mi4xNjguMTguMTg6OTY5Ni8ifV0sICJlbmRwb2ludHNfbGlua3MiOiBbXSwgInR5cGUiOiAibmV0d29yayIsICJuYW1lIjogIm5ldXRyb24ifSwgeyJlbmRwb2ludHMiOiBbeyJhZG1pblVSTCI6ICJodHRwOi8vMTkyLjE2OC4xOC4xODo4Nzc2L3YyLzg1OTZiMWU5MWNkNjQzNTJhZWRhOTVjZjJlNjI3MmQ1IiwgInJlZ2lvbiI6ICJSZWdpb25PbmUiLCAiaW50ZXJuYWxVUkwiOiAiaHR0cDovLzE5Mi4xNjguMTguMTg6ODc3Ni92Mi84NTk2YjFlOTFjZDY0MzUyYWVkYTk1Y2YyZTYyNzJkNSIsICJpZCI6ICI1NWVlNjA1YzYxN2M0YTc3YjBmMjQ5Yjk5MjdiNjM5MSIsICJwdWJsaWNVUkwiOiAiaHR0cDovLzE5Mi4xNjguMTguMTg6ODc3Ni92Mi84NTk2YjFlOTFjZDY0MzUyYWVkYTk1Y2YyZTYyNzJkNSJ9XSwgImVuZHBvaW50c19saW5rcyI6IFtdLCAidHlwZSI6ICJ2b2x1bWV2MiIsICJuYW1lIjogImNpbmRlcl92MiJ9LCB7ImVuZHBvaW50cyI6IFt7ImFkbWluVVJMIjogImh0dHA6Ly8xOTIuMTY4LjE4LjE4OjkyOTIiLCAicmVnaW9uIjogIlJlZ2lvbk9uZSIsICJpbnRlcm5hbFVSTCI6ICJodHRwOi8vMTkyLjE2OC4xOC4xODo5MjkyIiwgImlkIjogIjA0YTg3MjBiMDMwOTQ4OGI5YThkZTkyNDdjODUyYWEyIiwgInB1YmxpY1VSTCI6ICJodHRwOi8vMTkyLjE2OC4xOC4xODo5MjkyIn1dLCAiZW5kcG9pbnRzX2xpbmtzIjogW10sICJ0eXBlIjogImltYWdlIiwgIm5hbWUiOiAiZ2xhbmNlIn0sIHsiZW5kcG9pbnRzIjogW3siYWRtaW5VUkwiOiAiaHR0cDovLzE5Mi4xNjguMTguMTg6ODc3NyIsICJyZWdpb24iOiAiUmVnaW9uT25lIiwgImludGVybmFsVVJMIjogImh0dHA6Ly8xOTIuMTY4LjE4LjE4Ojg3NzciLCAiaWQiOiAiMDgxMTM0M2U1OGJhNGQ4OWFlOTg4MWY3YzM1MzAwMTIiLCAicHVibGljVVJMIjogImh0dHA6Ly8xOTIuMTY4LjE4LjE4Ojg3NzcifV0sICJlbmRwb2ludHNfbGlua3MiOiBbXSwgInR5cGUiOiAibWV0ZXJpbmciLCAibmFtZSI6ICJjZWlsb21ldGVyIn0sIHsiZW5kcG9pbnRzIjogW3siYWRtaW5VUkwiOiAiaHR0cDovLzE5Mi4xNjguMTguMTg6ODc3Ni92MS84NTk2YjFlOTFjZDY0MzUyYWVkYTk1Y2YyZTYyNzJkNSIsICJyZWdpb24iOiAiUmVnaW9uT25lIiwgImludGVybmFsVVJMIjogImh0dHA6Ly8xOTIuMTY4LjE4LjE4Ojg3NzYvdjEvODU5NmIxZTkxY2Q2NDM1MmFlZGE5NWNmMmU2MjcyZDUiLCAiaWQiOiAiMzkwYTQ1MzRkYTZkNDkwOWFlOWY4YThmZDVmZWNkYjYiLCAicHVibGljVVJMIjogImh0dHA6Ly8xOTIuMTY4LjE4LjE4Ojg3NzYvdjEvODU5NmIxZTkxY2Q2NDM1MmFlZGE5NWNmMmU2MjcyZDUifV0sICJlbmRwb2ludHNfbGlua3MiOiBbXSwgInR5cGUiOiAidm9sdW1lIiwgIm5hbWUiOiAiY2luZGVyIn0sIHsiZW5kcG9pbnRzIjogW3siYWRtaW5VUkwiOiAiaHR0cDovLzE5Mi4xNjguMTguMTg6ODc3My9zZXJ2aWNlcy9BZG1pbiIsICJyZWdpb24iOiAiUmVnaW9uT25lIiwgImludGVybmFsVVJMIjogImh0dHA6Ly8xOTIuMTY4LjE4LjE4Ojg3NzMvc2VydmljZXMvQ2xvdWQiLCAiaWQiOiAiMWYyMzE3NDYxMjgxNDIzMzgzZmM1MTFiZmRkNTg5OTYiLCAicHVibGljVVJMIjogImh0dHA6Ly8xOTIuMTY4LjE4LjE4Ojg3NzMvc2VydmljZXMvQ2xvdWQifV0sICJlbmRwb2ludHNfbGlua3MiOiBbXSwgInR5cGUiOiAiZWMyIiwgIm5hbWUiOiAibm92YV9lYzIifSwgeyJlbmRwb2ludHMiOiBbeyJhZG1pblVSTCI6ICJodHRwOi8vMTkyLjE2OC4xOC4xODozNTM1Ny92Mi4wIiwgInJlZ2lvbiI6ICJSZWdpb25PbmUiLCAiaW50ZXJuYWxVUkwiOiAiaHR0cDovLzE5Mi4xNjguMTguMTg6NTAwMC92Mi4wIiwgImlkIjogIjBkZmVmMDc3OGVlNzQ2ZDE5NWYyZDQxOTU2MzM3MmU2IiwgInB1YmxpY1VSTCI6ICJodHRwOi8vMTkyLjE2OC4xOC4xODo1MDAwL3YyLjAifV0sICJlbmRwb2ludHNfbGlua3MiOiBbXSwgInR5cGUiOiAiaWRlbnRpdHkiLCAibmFtZSI6ICJrZXlzdG9uZSJ9XSwgInVzZXIiOiB7InVzZXJuYW1lIjogImFkbWluIiwgInJvbGVzX2xpbmtzIjogW10sICJpZCI6ICIyZTZhZGU2NzJhMGI0OTE2ODUzM2QzNmIzZjIwNjFkZSIsICJyb2xlcyI6IFt7Im5hbWUiOiAiYWRtaW4ifV0sICJuYW1lIjogImFkbWluIn0sICJtZXRhZGF0YSI6IHsiaXNfYWRtaW4iOiAwLCAicm9sZXMiOiBbIjIyMTNkODgxOGFlODQwOTVhNmQ0NWIyMDZiMTliYTBkIl19fX0xggGBMIIBfQIBATBcMFcxCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVVbnNldDEOMAwGA1UEBwwFVW5zZXQxDjAMBgNVBAoMBVVuc2V0MRgwFgYDVQQDDA93d3cuZXhhbXBsZS5jb20CAQEwBwYFKw4DAhowDQYJKoZIhvcNAQEBBQAEggEADJ+7FD3J2IcQUrLxwoFG1R+wkcgJU2CwHaj4tH0h1zh2jCrNocZ2qg9NwuBLU49kmPxS0KVTQqE1reyNqCpTCbQ40o4YWF0qJJCGk08-GtxjGA4QH3VIjr69drtJlaGZucm+0oC1D0XGnnrPdxjCc6uqOoLdK22nWZL5n0av5KHjfST+kjzS6NQ3+Qunx0bMxxsGXwP8rk2a9PmFArSlWDCw0lIal995SO0paIgteZjmdDCZoZAzXEMJyiLyGHq-w8eSWLQXaqqktW7ivXWrzp6AQmTmSUvfdYtXudVfaD7JHQY8JPuALciriNi2Ktba2NlEWHqfEV3wKKiVbIFxrw==";
+				topCom.userName.text = "user: "+username;
+			}
+			/*
+			 *g开头的函数代表概要信息，如：gInfoService()代表服务概要信息，d开头的函数代表详细信息，如：dInfoService()代表服务详细信息。
+			*/	
+			/*
+			* 获得资源概要信息。
+			*/
+			private function gInfoResource():void
+			{
+				address.text="位置>"+accordion.selectedChild.label;
+				navContent1.label="资源概要";
+				navContent1.removeAllElements();
+				var showResource:ShowResource = new ShowResource();
+				var client:HttpClient = new HttpClient();
+				client.listener.onData = function(event:HttpDataEvent):void
+				{
+					var strData:String=event.readUTFBytes();
+					var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+					var jsonArray:Object = jsonPaser.limits.absolute;
+					var arrcoll1:ArrayCollection=new ArrayCollection();
+					var arrcoll2:ArrayCollection=new ArrayCollection();
+					var arrcoll3:ArrayCollection=new ArrayCollection();
+					var arrcoll4:ArrayCollection=new ArrayCollection();
+					var arrcoll5:ArrayCollection=new ArrayCollection();
+					arrcoll1.addItem({name:"未使用实例",value:(int(jsonArray.maxTotalInstances)-int(jsonArray.totalInstancesUsed)).toString()});
+					arrcoll1.addItem({name:"已使用实例",value:jsonArray.totalInstancesUsed});
+					arrcoll2.addItem({name:"未使用内核",value:(int(jsonArray.maxTotalCores)-int(jsonArray.totalCoresUsed)).toString()});
+					arrcoll2.addItem({name:"已使用内核",value:jsonArray.totalCoresUsed});
+					arrcoll3.addItem({name:"未使用内存",value:(int(jsonArray.maxTotalRAMSize)-int(jsonArray.totalRAMUsed)).toString()});
+					arrcoll3.addItem({name:"已使用内存",value:jsonArray.totalRAMUsed});
+					arrcoll4.addItem({name:"未使用浮动IP",value:(int(jsonArray.maxTotalFloatingIps)-int(jsonArray.totalFloatingIpsUsed)).toString()});
+					arrcoll4.addItem({name:"已使用浮动IP",value:jsonArray.totalFloatingIpsUsed});
+					arrcoll5.addItem({name:"未使用安全组",value:(int(jsonArray.maxSecurityGroups)-int(jsonArray.totalSecurityGroupsUsed)).toString()});
+					arrcoll5.addItem({name:"已使用安全组",value:jsonArray.totalSecurityGroupsUsed});
+					showResource.db1= arrcoll1;
+					showResource.db2= arrcoll2;
+					showResource.db3= arrcoll3;
+					showResource.db4= arrcoll4;
+					showResource.db5= arrcoll5;
+					navContent1.removeAllElements();
+					navContent1.addElement(showResource);
+				};
+				client.listener.onComplete = function(event:HttpResponseEvent):void
+				{
+					trace("oncomplete");
+					
+				};
+				client.listener.onError = function(event:ErrorEvent):void
+				{
+					trace("onError-type = "+event.type+"-text = "+event.text);
+				};
+				var url:String = "http://192.168.18.18:8774/v2/"+tenantId+"/limits";
+				var uri:URI = new URI(url);
+				var request:HttpRequest = new Get();
+				request.addHeader("contentType","application/json");
+				request.addHeader("Accept","application/json");
+				request.addHeader("X-Auth-Token",tokenId);
+				request.addHeader("resultFormat","text");
+				client.request(uri,request);
+				navContent1.addElement(showResource);
+			}
+			/*
+			* 获得服务概要信息。
+			*/
+			private function gInfoService():void
+			{
+				address.text="位置>"+accordion.selectedChild.label;
+				navContent1.label="服务";
+				navContent1.removeAllElements();
+				var serverobj:Object=showInfo.getServer(xml);
+				arraylist.removeAll();
+				for (var s in serverobj)
+				{
+					arraylist.addItem({type:s,name:serverobj[s]});
+				}
+				
+				var dataGrid:spark.components.DataGrid=new spark.components.DataGrid();
+				navContent1.removeAllElements();
+				navContent1.addElement(dataGrid);
+				dataGrid.dataProvider=arraylist;
+				dataGrid.move(0,0);
+				dataGrid.percentHeight = 100;
+				dataGrid.percentWidth = 100;
+			}
+			/*
+			* 获得云主机概要信息
+			*/
+			private function gInfoCompute():void
+			{
+				
+			}
+			/*
+			* 获得云主机类型概要信息
+			*/
+			private function gInfoFlavor():void
+			{
+				address.text="位置>"+accordion.selectedChild.label;
+				var client:HttpClient = new HttpClient();
+				client.listener.onStatus = function(event:HttpStatusEvent):void
+				{
+					trace("onStatus");
+				};
+				client.listener.onData = function(event:HttpDataEvent):void
+				{
+					navContent1.label="主机类型";
+					navContent1.removeAllElements();
+					trace("onData");
+					var strData:String=event.readUTFBytes();
+					var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+					var jsonArray:Array = jsonPaser.flavors as Array;
+					var jsonArrayCollection = new ArrayCollection(jsonArray);
+					var dataGrid:DataGrid=new DataGrid();
+					navContent1.removeAllElements();
+					navContent1.addElement(dataGrid);
+					dataGrid.dataProvider=jsonArrayCollection;
+					var cols:Array = new Array();
+					var column1:DataGridColumn = new DataGridColumn();
+					var column2:DataGridColumn = new DataGridColumn();
+					column1.dataField = "id";
+					column1.headerText ="ID"; 
+					column2.dataField = "name";
+					column2.headerText ="名称"; 
+					cols.push(column1);
+					cols.push(column2);
+					dataGrid.columns = cols;
+					dataGrid.move(0,0);
+					dataGrid.percentHeight = 100;
+					dataGrid.percentWidth = 100;
+					
+				};
+				client.listener.onComplete = function(event:HttpResponseEvent):void
+				{
+					trace("oncomplete");
+				};
+				client.listener.onError = function(event:ErrorEvent):void
+				{
+					trace("onError-type = "+event.type+"-text = "+event.text);
+				};
+				var url:String = "http://192.168.18.18:8774/v2/"+tenantId+"/flavors";
+				var uri:URI = new URI(url);
+				var request:HttpRequest = new Get();
+				request.addHeader("Content-Type","application/json");
+				request.addHeader("Accept","application/json");
+				request.addHeader("X-Auth-Token",tokenId);
+				request.addHeader("resultFormat","text");
+				client.request(uri,request);
+			}
+			/*
+			* 获得镜像概要信息
+			*/
+			private function gInfoImage():void
+			{
+				address.text="位置>"+accordion.selectedChild.label;
+				var client:HttpClient = new HttpClient();
+				client.listener.onStatus = function(event:HttpStatusEvent):void
+				{
+					trace("onStatus");
+				};
+				client.listener.onData = function(event:HttpDataEvent):void
+				{
+					navContent1.label="镜像";
+					var strData:String=event.readUTFBytes();
+					var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+					var jsonArray:Array = jsonPaser.images as Array;
+					var jsonArrayCollection = new ArrayCollection(jsonArray);
+					jsonArrayCollection.filterFunction = function filterFunc(value:Object):Object
+					{
+						trace(value.checksum);
+						if(value.checksum)
+						{
+							return true;
+						}
+						return false;
+					};
+					jsonArrayCollection.refresh();
+					var dataGrid:DataGrid=new DataGrid();
+					navContent1.removeAllElements();
+					navContent1.addElement(dataGrid);
+					dataGrid.dataProvider=jsonArrayCollection;
+					var cols:Array = new Array();
+					var column1:DataGridColumn = new DataGridColumn();
+					var column2:DataGridColumn = new DataGridColumn();
+					column1.dataField = "id";
+					column1.headerText ="ID"; 
+					column2.dataField = "name";
+					column2.headerText ="名称"; 
+					cols.push(column1);
+					cols.push(column2);
+					dataGrid.columns = cols;
+					dataGrid.move(0,0);
+					dataGrid.percentHeight = 100;
+					dataGrid.percentWidth = 100;
+				};
+				client.listener.onComplete = function(event:HttpResponseEvent):void
+				{
+					trace("oncomplete");
+				};
+				client.listener.onError = function(event:ErrorEvent):void
+				{
+					trace("onError-type = "+event.type+"-text = "+event.text);
+				};
+				
+				var url:String = "http://192.168.18.18:9292/v2/images";
+				var uri:URI = new URI(url);
+				var request:HttpRequest = new Get();
+				request.addHeader("contentType","application/json");
+				request.addHeader("Accept","application/xml");
+				request.addHeader("X-Auth-Token",tokenId);
+				request.addHeader("resultFormat","text");
+				client.request(uri,request);
+			}
+			/*
+			* 显示镜像详细信息
+			*/
+			private function dInfoImage():void
+			{
+				address.text="位置>"+accordion.selectedChild.label;
+				navContent1.label="镜像信息";
+				var dImage:DInfoImage = new DInfoImage();
+				dImage.tokenId = tokenId;
+				dImage.searchImage();
+				navContent1.removeAllElements();
+				navContent1.addElement(dImage);			
+			}
+			/*
+			* 显示主机类型详细信息
+			*/
+			private function dInfoFlavor():void
+			{
+				address.text="位置>"+accordion.selectedChild.label;
+				navContent1.label="主机配置信息";
+				var dFla:DInfoFlavor = new DInfoFlavor();
+				dFla.tokenId = tokenId;
+				dFla.tenantId = tenantId;
+				dFla.searchFlavor();
+				navContent1.removeAllElements();
+				navContent1.addElement(dFla);
+			}
+			/*
+			* 显示处理云主机详细信息
+			*/
+			private function dInfoComputer():void
+			{
+				address.text="位置>"+accordion.selectedChild.label;
+				navContent1.label="云主机信息";
+				var dCompute:DInfoCompute = new DInfoCompute();
+				dCompute.tokenId = tokenId;
+				dCompute.tenantId = tenantId;
+				dCompute.searchCompute();
+				navContent1.removeAllElements();
+				navContent1.addElement(dCompute);
+			}
+			/*
+			* 显示网络详细信息
+			*/
+			private function dInfoNetwork():void
+			{
+				address.text="位置>"+accordion.selectedChild.label;
+				navContent1.label="网络信息";
+				navContent1.removeAllElements();
+				var dNet:DInfoNetwork = new DInfoNetwork();
+				dNet.tokenId = tokenId;
+				dNet.searchNetwork();
+				navContent1.removeAllElements();
+				navContent1.addElement(dNet);
+			}
+		
+		]]>
+	</fx:Script>
+	<com:Main_top left="0" top="0" width="100%" id="topCom"></com:Main_top>
+	
+	<s:Group left="0" top="90" width="100%" height="35">
+		<s:Rect left="0" right="0" top="0" bottom="0" alpha="0.8"> 
+			<s:fill> 
+				<s:LinearGradient rotation="90"> 
+					<s:GradientEntry color="#0083C7" ratio="0"/> 
+					<s:GradientEntry color="#3BA5DF" ratio="1"/> 
+				</s:LinearGradient> 
+			</s:fill> 
+		</s:Rect>
+		<s:Group left="0" top="0" width="200" height="35">
+			<s:Label width="76" color="#FFFFFF" fontSize="16" horizontalCenter="0" text="管理功能"
+					 textAlign="center" verticalAlign="middle" verticalCenter="0"/>
+		</s:Group>
+		<!--<mx:VRule left="200" top="0" height="35" chromeColor="#F64B4B"/>-->
+		<s:Group left="201" right="0" top="0" bottom="0">
+			<s:Label id="address" y="9" left="0" right="0" color="#FFFFFF" fontSize="16"
+					 text="位置&gt;" textAlign="left" verticalAlign="middle"/>
+			
+		</s:Group>
+		
+		
+	</s:Group>
+
+	<!--数据显示区-->
+	<mx:Accordion left="0" top="125" bottom="10" width="200" chromeColor="#70B2EE" id="accordion" headerHeight="30"  fontSize="16">
+		<s:NavigatorContent width="100%" height="100%" label="概况" id="server" textAlign="center">
+			<s:Button left="10" top="27" width="188" height="27" label="服务信息" click="gInfoService()"/>
+			<s:Button left="10" right="0" top="54" height="27" label="节点信息" click="gInfoCompute()"/>
+			<s:Button label="云主机类型" height="27" top="81" left="9" right="1" click="gInfoFlavor()"/>
+			<s:Button label="资源摘要" height="27" right="0" left="10" top="0" click="gInfoResource()"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent width="100%" height="100%" label="计算服务" id="d2">
+			<s:Button label="云主机" left="10" top="0" height="27" right="0" click="dInfoComputer()"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent width="100%" height="100%" label="镜像服务" id="d3">
+			<s:Button left="10" right="0" top="0" height="27" label="显示镜像" click="dInfoImage()"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent width="100%" height="100%" label="主机配置">
+			<s:Button label="主机配置信息" height="27" top="0" right="0" left="10" click="dInfoFlavor()"/>
+		</s:NavigatorContent>
+		<s:NavigatorContent width="100%" height="100%" label="网络服务">
+			<s:Button label="网络" height="27" right="0" top="0" left="10" click="dInfoNetwork()"/>
+		</s:NavigatorContent>
+	</mx:Accordion>
+	<mx:TabNavigator id="tabnv" left="210" right="10" top="125" bottom="10" chromeColor="#3FB5E0" creationPolicy="all">
+		<s:NavigatorContent width="100%" height="100%" label="云管理平台简介 " chromeColor="#3FB5E0" id="navContent1">
+		</s:NavigatorContent>
+	</mx:TabNavigator>
+	
+</s:Application>

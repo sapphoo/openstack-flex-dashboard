@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		 xmlns:s="library://ns.adobe.com/flex/spark" 
+		 xmlns:mx="library://ns.adobe.com/flex/mx" width="100%" height="100%" creationComplete="init()">
+	<fx:Script>
+		<![CDATA[
+			/*
+			 *操作主要涉及CAUD:增删改查
+			 *由于更新镜像用的是Patch操作，但是Flex中没有patch操作，所以没有实现更新操作。 
+			*/
+			import com.adobe.net.URI;
+			import com.adobe.serialization.json.JSON;
+			import com.image.UpdateImage;
+			import com.image.UploadImage;
+			
+			import events.DeliverImageIdEvent;
+			
+			import mx.collections.ArrayCollection;
+			import mx.controls.Alert;
+			import mx.events.CloseEvent;
+			import mx.managers.PopUpManager;
+			
+			import org.httpclient.HttpClient;
+			import org.httpclient.HttpRequest;
+			import org.httpclient.events.HttpDataEvent;
+			import org.httpclient.events.HttpListener;
+			import org.httpclient.events.HttpResponseEvent;
+			import org.httpclient.events.HttpStatusEvent;
+			import org.httpclient.http.Delete;
+			import org.httpclient.http.Get;
+			import org.httpclient.http.Post;
+			import org.httpclient.http.Put;
+			[Bindable]
+			public var tokenId:String;
+			[Bindable]
+			private var arrcoll:ArrayCollection = new ArrayCollection();
+			//private var networkId:String;
+			private var ui:UpdateImage;
+			private var ci:CreateImage;
+			private var uploadImage:UploadImage;
+			private function init():void
+			{
+				ui = new UpdateImage();
+				ci = new CreateImage();
+				uploadImage = new UploadImage();
+				datagrid_img.addEventListener("Update",updateImageHandler,true);
+				datagrid_img.addEventListener("Delete",deleteImageHandler,true);
+				datagrid_img.addEventListener(DeliverImageIdEvent.DELIVERID,getDetailImageHandler);
+				ui.addEventListener("UpdateImage",updImageHandler);
+				ci.addEventListener("CreateImage",creImageHandler);
+				uploadImage.addEventListener("UploadImage",uploadImageHandler);
+			}
+			private function createImage():void
+			{
+				PopUpManager.addPopUp(ci, this, true);
+			}
+			private function creImageHandler(evt:Event):void
+			{
+				var ispublic:String = (ci.isPublic.selected==false)?"private":"public";
+				var strFormat:String = '{"name": "'+ci.iName.text+'", "tags": ["'+ci.disc.text+'"],"container_format":"'+ci.container_format.selectedItem.toString().toLowerCase()+'","disk_format":"'+ci.disk_format.selectedItem.toString().toLowerCase()+'","visibility":"'+ispublic+'"}';
+				var client:HttpClient = new HttpClient();
+				client.listener.onData = function(event:HttpDataEvent):void
+				{
+					var strData:String=event.readUTFBytes();
+					var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+					if(jsonPaser!=null&&jsonPaser.file!=null)
+					{
+						Alert.show("创建成功！","恭喜");
+						uploadTheImage(jsonPaser.file);
+					}
+				};
+				client.listener.onComplete = function(event:HttpResponseEvent):void
+				{
+					searchImage();
+				};
+				client.listener.onError = function(event:ErrorEvent):void
+				{
+					trace("onError-type = "+event.type+"-text = "+event.text);
+				};
+				
+				var url:String = "http://192.168.18.18:9292/v2/images";
+				var uri:URI = new URI(url);
+				var post:Post = new Post();
+				post.addHeader("X-Auth-Token",tokenId);
+				post.contentType = "application/json";
+				var bya:ByteArray = new ByteArray();
+				bya.writeUTFBytes(strFormat);
+				bya.position=0;
+				post.body = bya;
+				client.request(uri,post);
+			}
+			private function uploadTheImage(fileAddr:String):void
+			{
+				uploadImage.tokenId = tokenId;
+				uploadImage.fileAddr = fileAddr;
+				PopUpManager.addPopUp(uploadImage, this, true);
+			}
+			private function uploadImageHandler(evt:Event):void
+			{
+				searchImage();
+			}
+			public function searchImage():void
+			{
+				var client:HttpClient = new HttpClient();
+				client.listener.onData = function(event:HttpDataEvent):void
+				{
+					var strData:String=event.readUTFBytes();
+					var jsonPaser:Object = com.adobe.serialization.json.JSON.decode(strData);
+					var jsonArray:Array = jsonPaser.images as Array;
+					arrcoll = new ArrayCollection(jsonArray);
+				};
+				client.listener.onComplete = function(event:HttpResponseEvent):void
+				{
+					trace("oncomplete");
+				};
+				client.listener.onError = function(event:ErrorEvent):void
+				{
+					trace("onError-type = "+event.type+"-text = "+event.text);
+				};
+				var url:String = "http://192.168.18.18:9292/v2/images";		
+				var uri:URI = new URI(url);
+				var request:HttpRequest = new Get();
+				request.addHeader("contentType","application/json");								
+				request.addHeader("Accept","application/xml");
+				request.addHeader("X-Auth-Token",tokenId);
+				request.addHeader("resultFormat","text");
+				client.request(uri,request);
+			} 
+			private function deleteImageHandler(evt:Event):void
+			{
+				Alert.show("确定删除？","系统提示",(1|2),this,delItemHandle);	
+			}
+			private function delItemHandle(event:CloseEvent):void
+			{
+				if (event.detail==Alert.YES){
+					var client:HttpClient = new HttpClient();
+					client.listener.onData = function(event:HttpDataEvent):void
+					{
+						trace("onData");
+						var strData:String=event.readUTFBytes();
+						trace(strData);
+						
+					};
+					client.listener.onComplete = function(event:HttpResponseEvent):void
+					{
+						trace(event.type);
+						Alert.show("镜像删除成功！","恭喜");
+						searchImage();
+						
+					};
+					client.listener.onError = function(event:ErrorEvent):void
+					{
+						trace("onError-type = "+event.type+"-text = "+event.text);
+					};
+					var url:String = "http://192.168.18.18:9292/v2/images/"+datagrid_img.selectedItem.id;
+					var uri:URI = new URI(url);
+					var del:Delete = new Delete();
+					del.addHeader("X-Auth-Token",tokenId);
+					client.request(uri,del);
+				}
+				else
+				{
+				}
+			}
+			private function updateImageHandler(evt:Event):void
+			{
+				PopUpManager.addPopUp(ui, this, true);
+
+			}
+			private function updImageHandler(evt:Event):void
+			{
+				
+			}
+			private function getDetailImageHandler(evt:DeliverImageIdEvent):void
+			{
+				var gdni = new GetDetailImageInfo();
+				gdni.tokenId = tokenId;
+				gdni.networkId = evt.data;
+				PopUpManager.addPopUp(gdni, this, true);
+			}
+		]]>
+	</fx:Script>
+	<s:Rect left="0" top="0" alpha="0.8" height="35" width="100%"> 
+		<s:fill> 
+			<s:LinearGradient rotation="90"> 
+				<s:GradientEntry color="#0083C7" ratio="0"/> 
+				<s:GradientEntry color="#3BA5DF" ratio="1"/> 
+			</s:LinearGradient> 
+		</s:fill> 
+	</s:Rect>
+	<s:Label left="0" width="70" height="25" color="#FFFFFF" fontSize="16" text="镜像信息"
+			 textAlign="center" verticalAlign="middle" top="4"/>
+	<s:Button right="10" width="91" height="25" label="创建镜像" color="#FFFFFF"
+			  fontSize="14" click="createImage()" chromeColor="#3FB5E0" y="4"/>
+	<mx:DataGrid id="datagrid_img" left="0" top="35" right="0" dataProvider="{arrcoll}" textAlign="center">
+		<mx:columns>
+			<mx:DataGridColumn  headerText="镜像ID" dataField="id"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="镜像名称" dataField="name"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="类型" dataField="container_format"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="状态" dataField="status"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="受保护" dataField="protected"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="格式化" dataField="disk_format"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="更新时间" dataField="updated_at"></mx:DataGridColumn>
+			<mx:DataGridColumn  headerText="动作" dataField="">
+				<mx:itemRenderer>
+					<fx:Component> 
+						<mx:HBox width="100" height="25" horizontalAlign="center">
+							<s:Button width="45" height="25" label="编辑" click="updateBtn(event);"/>
+							<s:Button width="45" height="25" label="删除" click="deleteBtn(event);"/>
+							<fx:Script>
+								<![CDATA[
+									private function updateBtn(event:MouseEvent):void
+									{
+										dispatchEvent(new Event("Update"));
+									}
+									private function deleteBtn(event:MouseEvent):void
+									{
+										dispatchEvent(new Event("Delete"));
+									}
+								]]>
+							</fx:Script>
+						</mx:HBox>
+					</fx:Component> 
+				</mx:itemRenderer> 
+			</mx:DataGridColumn>
+		</mx:columns>
+	</mx:DataGrid>
+</s:Group>
+

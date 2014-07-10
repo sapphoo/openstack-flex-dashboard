@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Group xmlns:fx="http://ns.adobe.com/mxml/2009"
+		 xmlns:s="library://ns.adobe.com/flex/spark"
+		 xmlns:mx="library://ns.adobe.com/flex/mx"
+		 width="100%" height="90" chromeColor="#36B3F3" color="#FFFFFF"
+		 contentBackgroundColor="#4CBBEF">
+	<fx:Declarations>
+		<!-- 将非可视元素（例如服务、值对象）放在此处 -->
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import mx.events.ItemClickEvent;
+			import mx.controls.Alert;
+			public function linkBar_itemClick(evt:ItemClickEvent):void
+			{
+				trace(evt.index);
+				if(evt.index==1)
+				{
+					Alert.show("about");
+				}
+				else if(evt.index==2)
+				{
+					Alert.show("eixt");
+				}
+				else
+				{
+					Alert.show("help");
+				}
+			}
+				
+			
+		]]>
+	</fx:Script>
+	<s:Rect left="0" right="0" top="0" bottom="0" alpha="0.8"> 
+		<s:fill> 
+			<s:LinearGradient rotation="90"> 
+				<s:GradientEntry color="#0083C7" ratio="0"/> 
+				<s:GradientEntry color="#3BA5DF" ratio="1"/> 
+			</s:LinearGradient> 
+		</s:fill> 
+	</s:Rect>
+	<s:Image left="0" top="0" source="assets/top_left1.png"/>
+	<s:HGroup y="10" right="10" width="126" height="24">
+		<mx:LinkBar id="linBar" width="125" height="23" backgroundAlpha="1.0" backgroundColor="#37A7EE"
+					borderColor="#3DA8E0" chromeColor="#28A7E2" dropShadowVisible="false" itemClick="linkBar_itemClick(event);">
+			<mx:dataProvider>
+				<fx:Array id="titleArray">
+					<fx:String id="help">帮助</fx:String>
+					<fx:String id="about">关于</fx:String>
+					<fx:String id="quit">退出</fx:String>
+				</fx:Array>
+			</mx:dataProvider>
+		</mx:LinkBar>
+	</s:HGroup>
+	<s:HGroup right="10" bottom="10" width="126" height="29">
+		<s:Image width="31" height="30" source="assets/2.jpg"/>
+		<s:Label height="31" text="user:Admin" textAlign="center" verticalAlign="middle" id="userName"/>
+	</s:HGroup>
+</s:Group>

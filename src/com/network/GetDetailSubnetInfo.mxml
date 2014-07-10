@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:TitleWindow xmlns:fx="http://ns.adobe.com/mxml/2009" 
+			   xmlns:s="library://ns.adobe.com/flex/spark"
+			   xmlns:mx="library://ns.adobe.com/flex/mx"  title="子网详情" 
+			   fontSize="12"  borderColor="#232020" 
+			   fontWeight="bold"  color="#283584" width="578" height="738" 
+			   close="close()" creationComplete="Init()">
+	<fx:Script>
+		<![CDATA[
+			import mx.managers.PopUpManager;
+			[Bindable]
+			var net_name:String="";
+			[Bindable]
+			var net_admin_status="";
+			[Bindable]
+			var net_dns:String ="";
+			[Bindable]
+			var net_gateway:String ="";
+			[Bindable]
+			var net_ip_pool:String ="";
+			[Bindable]
+			var net_ip_scope:String ="";
+			[Bindable]
+			var net_ip_version:String ="";
+			[Bindable]
+			var net_tenant:String ="";
+			[Bindable]
+			var net_dhcp:String ="";
+			[Bindable]
+			var net_routers:String =""
+			<!--定义函数close(),init()-->
+			private function Init():void
+			{
+				this.x=this.parent.width/2-this.width/2;
+				this.y=this.parent.height/2-this.height/2;
+			}
+			private function close():void{
+				
+				PopUpManager.removePopUp(this);
+			}
+			private function create():void
+			{
+				close();
+			}
+		]]>
+	</fx:Script>
+	
+	<!--设计界面-->
+	<s:Label color="#000000" fontWeight="normal" fontSize="12" text="子网名称：" height="25" textAlign="center" top="15" left="24"/>
+	<s:Label text="云租户：" color="#000000" fontWeight="normal" top="65" left="24" height="25" />
+	<s:Label text="管理员状态：" top="115" left="24" height="25" />
+	<s:Label text="网关：" left="24" top="165" height="25"/>
+	<s:Label  width="300" height="25" id="snet_gateway" top="190" left="24" text="{net_gateway}"/>
+	<s:Label text="DNS服务地址：" left="24" top="215" height="25" />
+	<s:Label text="IP地址池：" left="24" top="478" height="25" />
+	<s:Label text="IP版本：" left="26" top="329" height="25" />
+	<s:Label text="所属网段：" left="25" top="379" height="25" />
+	<s:Label text="{net_ip_scope}" width="300" height="25" id="snet_ip_scope" left="26" top="404" />
+	<s:Label x="24" text="{net_name}" width="300" height="25" id="snet_name" top="40" />
+	<s:Label text="{net_tenant}" width="300" height="25" id="snet_tenant" top="90" left="24" />
+	<s:Label text="{net_admin_status}" width="300" height="25" id="snet_admin_status" left="24" top="140" />
+	<s:Label text="{net_ip_version}" width="300" height="25" id="snet_ip_version" left="26" top="354" />
+	<s:Label text="可否DHCP" left="25" top="429" height="25" />
+	<s:Label text="{net_dhcp}" width="300" height="25" id="snet_dhcp" left="24" top="454" />
+	<s:TextArea height="75" id="snet_dns" text="{net_dns}" left="24" top="240" editable="false"/>
+	<s:TextArea x="23" y="502" height="75" id="snet_ip_pool" text="{net_ip_pool}" editable="false"/>
+	<s:Label x="23" y="587" text="主机路由"/>
+	<s:TextArea id="snet_routers" text="{net_routers}" height="75" left="24" top="612" editable="false"/>
+</s:TitleWindow>
